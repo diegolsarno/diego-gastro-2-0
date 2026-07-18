@@ -200,12 +200,17 @@
   .login-error{color:var(--red); font-size:12.5px; margin-top:10px; display:none;}
   .app-hidden{display:none;}
   .user-chip{color:var(--muted); font-size:12.5px; display:flex; align-items:center; gap:10px;}
-  .login-links{display:flex; justify-content:center; margin-top:16px;}
+  .login-links{display:flex; justify-content:center; align-items:center; gap:4px; flex-wrap:wrap; margin-top:16px;}
+  .login-links span{color:var(--border); font-size:12.5px;}
   .login-links button{background:none; border:none; color:var(--accent); font-size:12.5px; cursor:pointer; padding:4px;}
   #pickerScreen{
     position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:200;
   }
   #pickerScreen.app-hidden{ display:none; }
+  #resetPasswordScreen{
+    position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:200;
+  }
+  #resetPasswordScreen.app-hidden{ display:none; }
   .picker-box{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:32px; width:100%; max-width:420px;}
   .picker-box h2{margin:0 0 6px; font-size:18px;}
   .picker-box p{color:var(--muted); font-size:12.5px; margin:0 0 18px;}
@@ -330,7 +335,22 @@
     <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="••••••••"></div>
     <button class="btn" style="width:100%;" onclick="doLogin()">Ingresar</button>
     <div class="login-error" id="loginError"></div>
-    <div class="login-links"><button type="button" onclick="openModal('modalSignup')">+ Nuevo usuario</button></div>
+    <div class="login-links">
+      <button type="button" onclick="openModal('modalSignup')">+ Nuevo usuario</button>
+      <span>·</span>
+      <button type="button" onclick="openModal('modalForgotPassword')">¿Olvidaste tu contraseña?</button>
+    </div>
+  </div>
+</div>
+
+<div id="resetPasswordScreen" class="app-hidden">
+  <div class="login-box">
+    <p>Elegí tu nueva contraseña.</p>
+    <div class="field"><label>Nueva contraseña</label><input id="resetPass" type="password" placeholder="Mínimo 7 caracteres, con una mayúscula"></div>
+    <div class="field"><label>Repetir contraseña</label><input id="resetPass2" type="password" placeholder="••••••••"></div>
+    <div class="hint">La contraseña debe tener al menos 7 caracteres e incluir al menos una letra mayúscula.</div>
+    <button class="btn" style="width:100%;" onclick="doResetPassword()">Guardar nueva contraseña</button>
+    <div class="login-error" id="resetPasswordError"></div>
   </div>
 </div>
 
@@ -359,6 +379,21 @@
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalSignup')">Cancelar</button>
       <button class="btn" onclick="doSignup()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OLVIDE MI CONTRASEÑA -->
+<div class="overlay" id="modalForgotPassword">
+  <div class="modal">
+    <h3>Restablecer contraseña</h3>
+    <p style="color:var(--muted); font-size:12.5px; margin:0 0 14px;">Ingresá tu email y te vamos a enviar un link para que puedas elegir una nueva contraseña.</p>
+    <div class="field"><label>Email</label><input id="forgotEmail" type="email" placeholder="tu@mail.com"></div>
+    <div class="login-error" id="forgotPasswordError"></div>
+    <div class="hint" id="forgotPasswordOk" style="display:none; color:var(--green);"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalForgotPassword')">Cancelar</button>
+      <button class="btn" id="btnEnviarReset" onclick="doForgotPassword()">Enviar instrucciones</button>
     </div>
   </div>
 </div>
@@ -937,6 +972,20 @@ if(SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 10){
   document.getElementById('configWarning').style.display = 'block';
 }
 
+/* ---------- Restablecer contraseña (link enviado por mail) ---------- */
+let inPasswordRecovery = false;
+if(supa){
+  supa.auth.onAuthStateChange((event)=>{
+    if(event === 'PASSWORD_RECOVERY'){
+      inPasswordRecovery = true;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('pickerScreen').classList.add('app-hidden');
+      document.getElementById('appRoot').classList.add('app-hidden');
+      document.getElementById('resetPasswordScreen').classList.remove('app-hidden');
+    }
+  });
+}
+
 let data = {
   insumos:[], recetas:[], menu:[],
   proveedores:[], familias:[], precioHistorico:[],
@@ -985,6 +1034,43 @@ async function doSignup(){
       alert('Usuario creado. Ya podés iniciar sesión (si tu administrador configuró confirmación por email, primero revisá tu casilla).');
     }
   }catch(e){ errEl.textContent = 'No se pudo crear el usuario: ' + e.message; errEl.style.display='block'; }
+}
+
+/* ---------- Olvidé mi contraseña ---------- */
+async function doForgotPassword(){
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errEl = document.getElementById('forgotPasswordError');
+  const okEl = document.getElementById('forgotPasswordOk');
+  errEl.style.display = 'none';
+  okEl.style.display = 'none';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Ingresá un email válido.'; errEl.style.display='block'; return; }
+  if(!supa){ errEl.textContent = 'Falta configurar la conexión a Supabase en el archivo.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btnEnviarReset');
+  btn.disabled = true;
+  try{
+    const redirectTo = window.location.origin + window.location.pathname;
+    const {error} = await supa.auth.resetPasswordForEmail(email, {redirectTo});
+    if(error) throw error;
+    okEl.textContent = 'Listo. Si ese email tiene una cuenta, te va a llegar un correo con las instrucciones para restablecer tu contraseña.';
+    okEl.style.display = 'block';
+  }catch(e){ errEl.textContent = 'No se pudo enviar el email: ' + e.message; errEl.style.display='block'; }
+  finally{ btn.disabled = false; }
+}
+async function doResetPassword(){
+  const pass = document.getElementById('resetPass').value;
+  const pass2 = document.getElementById('resetPass2').value;
+  const errEl = document.getElementById('resetPasswordError');
+  errEl.style.display = 'none';
+  if(!passwordValida(pass)){ errEl.textContent = 'La contraseña debe tener al menos 7 caracteres e incluir una mayúscula.'; errEl.style.display='block'; return; }
+  if(pass!==pass2){ errEl.textContent = 'Las contraseñas no coinciden.'; errEl.style.display='block'; return; }
+  try{
+    const {error} = await supa.auth.updateUser({password: pass});
+    if(error) throw error;
+    inPasswordRecovery = false;
+    alert('Tu contraseña se actualizó correctamente. Ya podés iniciar sesión con la nueva contraseña.');
+    await supa.auth.signOut();
+    location.href = window.location.origin + window.location.pathname;
+  }catch(e){ errEl.textContent = 'No se pudo actualizar la contraseña: ' + e.message; errEl.style.display='block'; }
 }
 /* ---------- Tema día/noche ---------- */
 function themeColor(varName){
@@ -1044,7 +1130,7 @@ async function onLoggedIn(session){
 async function checkSession(){
   if(!supa) return;
   const {data:{session}} = await supa.auth.getSession();
-  if(session) onLoggedIn(session);
+  if(session && !inPasswordRecovery) onLoggedIn(session);
 }
 
 /* ---------- Pantalla selector de establecimiento (solo admin) ---------- */
