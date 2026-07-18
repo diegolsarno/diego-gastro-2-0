@@ -200,6 +200,21 @@
   .login-error{color:var(--red); font-size:12.5px; margin-top:10px; display:none;}
   .app-hidden{display:none;}
   .user-chip{color:var(--muted); font-size:12.5px; display:flex; align-items:center; gap:10px;}
+  .login-links{display:flex; justify-content:center; margin-top:16px;}
+  .login-links button{background:none; border:none; color:var(--accent); font-size:12.5px; cursor:pointer; padding:4px;}
+  #pickerScreen{
+    position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:200;
+  }
+  .picker-box{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:32px; width:100%; max-width:420px;}
+  .picker-box h2{margin:0 0 6px; font-size:18px;}
+  .picker-box p{color:var(--muted); font-size:12.5px; margin:0 0 18px;}
+  .proyecto-list{display:flex; flex-direction:column; gap:10px; margin-bottom:16px;}
+  .proyecto-item{
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;
+    font-size:14.5px; font-weight:700; cursor:pointer; text-align:left; color:var(--text);
+  }
+  .proyecto-item:hover{border-color:var(--accent);}
+  .proyecto-pending{color:var(--muted); font-size:13px; text-align:center; padding:20px 0;}
   .config-warning{
     background:rgba(230,126,34,.15); border:1px solid var(--orange); color:var(--orange);
     padding:14px 18px; border-radius:8px; margin:20px 28px; font-size:13px;
@@ -314,6 +329,49 @@
     <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="••••••••"></div>
     <button class="btn" style="width:100%;" onclick="doLogin()">Ingresar</button>
     <div class="login-error" id="loginError"></div>
+    <div class="login-links"><button type="button" onclick="openModal('modalSignup')">+ Nuevo usuario</button></div>
+  </div>
+</div>
+
+<div id="pickerScreen" class="app-hidden">
+  <div class="picker-box">
+    <h2 id="pickerTitle">Elegí un establecimiento</h2>
+    <p id="pickerSub">Seleccioná el establecimiento con el que querés trabajar.</p>
+    <div class="proyecto-list" id="proyectoList"></div>
+    <button class="btn secondary" style="width:100%;" id="btnNuevoProyecto" onclick="openModal('modalNuevoProyecto')">+ Nuevo proyecto</button>
+    <div class="proyecto-pending app-hidden" id="proyectoPending">
+      Tu usuario todavía no tiene un establecimiento asignado.<br>Pedile al administrador que te lo asigne.
+    </div>
+    <div class="login-links"><button type="button" onclick="doLogout()">Cerrar sesión</button></div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO USUARIO -->
+<div class="overlay" id="modalSignup">
+  <div class="modal">
+    <h3>Crear nuevo usuario</h3>
+    <div class="field"><label>Email</label><input id="signupEmail" type="email" placeholder="tu@mail.com"></div>
+    <div class="field"><label>Contraseña</label><input id="signupPass" type="password" placeholder="Mínimo 7 caracteres, con una mayúscula"></div>
+    <div class="field"><label>Repetir contraseña</label><input id="signupPass2" type="password" placeholder="••••••••"></div>
+    <div class="hint">La contraseña debe tener al menos 7 caracteres e incluir al menos una letra mayúscula.</div>
+    <div class="login-error" id="signupError"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalSignup')">Cancelar</button>
+      <button class="btn" onclick="doSignup()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO PROYECTO -->
+<div class="overlay" id="modalNuevoProyecto">
+  <div class="modal">
+    <h3>Nuevo proyecto</h3>
+    <div class="field"><label>Nombre del establecimiento</label><input id="nuevoProyectoNombre" placeholder="Ej: Nua"></div>
+    <div class="login-error" id="nuevoProyectoError"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalNuevoProyecto')">Cancelar</button>
+      <button class="btn" onclick="crearProyecto()">Crear</button>
+    </div>
   </div>
 </div>
 
@@ -321,11 +379,12 @@
 
 <header>
   <div>
-    <h1>🍽️ Costeo Nido Sta. Barbara</h1>
+    <h1>🍽️ <span id="proyectoNombreHeader">Costeo Nido Sta. Barbara</span></h1>
     <div class="sub">Conectado a Supabase — los datos se comparten entre todos los que inician sesión</div>
   </div>
   <div class="user-chip">
     <span id="userEmail"></span>
+    <button class="btn secondary small app-hidden" id="btnCambiarProyecto" onclick="volverAlPicker()">🔀 Cambiar establecimiento</button>
     <button class="btn secondary small" id="btnThemeToggle" onclick="toggleTheme()">🌙 Modo noche</button>
     <button class="btn secondary small" onclick="doLogout()">Cerrar sesión</button>
   </div>
@@ -377,6 +436,7 @@
 <nav class="subnav" id="subnav-parametros">
   <button data-view="familias" class="active">Familias</button>
   <button data-view="proveedores">Proveedores</button>
+  <button data-view="usuarios" id="navUsuarios" class="app-hidden">Usuarios</button>
 </nav>
 
 <main>
@@ -644,6 +704,22 @@
     </div>
   </div>
 
+  <!-- ========== PARAMETROS: Usuarios (solo admin) ========== -->
+  <div class="view" id="view-usuarios">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Usuarios <span class="badge-count" id="countUsuarios">0</span></h2>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Email</th><th>Establecimiento asignado</th><th>Admin</th><th></th></tr></thead>
+        <tbody id="tblUsuarios"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyUsuarios" style="display:none;">Todavía no hay usuarios.</div>
+    </div>
+  </div>
+
 </main>
 
 <footer>Datos guardados en Supabase (base de datos en la nube) — accesible desde cualquier dispositivo con sesión iniciada.</footer>
@@ -740,6 +816,21 @@
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalProveedor')">Cancelar</button>
       <button class="btn" onclick="saveProveedor()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ASIGNAR USUARIO -->
+<div class="overlay" id="modalAsignarUsuario">
+  <div class="modal">
+    <h3>Asignar establecimiento</h3>
+    <input type="hidden" id="asignarUsuarioId">
+    <div class="field"><label>Usuario</label><div id="asignarUsuarioEmail" class="hint" style="margin-top:0;"></div></div>
+    <div class="field"><label>Establecimiento</label><select id="asignarUsuarioProyecto"><option value="">— sin asignar —</option></select></div>
+    <div class="field"><label><input type="checkbox" id="asignarUsuarioAdmin" style="width:auto; margin-right:6px;">Es administrador</label></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalAsignarUsuario')">Cancelar</button>
+      <button class="btn" onclick="guardarAsignacionUsuario()">Guardar</button>
     </div>
   </div>
 </div>
@@ -851,6 +942,12 @@ let data = {
   gastos:[], ventasDiarias:[], cajaMovimientos:[],
 };
 
+/* ---------- Multi-proyecto (establecimientos) ---------- */
+let currentUser = null;      // { id, email }
+let currentProfile = null;   // { id, email, proyecto_id, is_admin }
+let currentProyecto = null;  // { id, nombre }
+let proyectosDisponibles = []; // solo se llena para el admin
+
 /* ---------- Auth ---------- */
 async function doLogin(){
   const email = document.getElementById('loginEmail').value.trim();
@@ -861,6 +958,32 @@ async function doLogin(){
   const {data:res, error} = await supa.auth.signInWithPassword({email, password});
   if(error){ errEl.textContent = 'No se pudo iniciar sesión: ' + error.message; errEl.style.display='block'; return; }
   onLoggedIn(res.session);
+}
+
+/* ---------- Nuevo usuario (signup) ---------- */
+function passwordValida(pw){
+  return pw.length>=7 && /[A-Z]/.test(pw);
+}
+async function doSignup(){
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass = document.getElementById('signupPass').value;
+  const pass2 = document.getElementById('signupPass2').value;
+  const errEl = document.getElementById('signupError');
+  errEl.style.display = 'none';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Ingresá un email válido.'; errEl.style.display='block'; return; }
+  if(!passwordValida(pass)){ errEl.textContent = 'La contraseña debe tener al menos 7 caracteres e incluir una mayúscula.'; errEl.style.display='block'; return; }
+  if(pass!==pass2){ errEl.textContent = 'Las contraseñas no coinciden.'; errEl.style.display='block'; return; }
+  if(!supa){ errEl.textContent = 'Falta configurar la conexión a Supabase en el archivo.'; errEl.style.display='block'; return; }
+  try{
+    const {data:res, error} = await supa.auth.signUp({email, password:pass});
+    if(error) throw error;
+    closeModal('modalSignup');
+    if(res.session){
+      onLoggedIn(res.session);
+    }else{
+      alert('Usuario creado. Ya podés iniciar sesión (si tu administrador configuró confirmación por email, primero revisá tu casilla).');
+    }
+  }catch(e){ errEl.textContent = 'No se pudo crear el usuario: ' + e.message; errEl.style.display='block'; }
 }
 /* ---------- Tema día/noche ---------- */
 function themeColor(varName){
@@ -886,15 +1009,104 @@ async function doLogout(){
   location.reload();
 }
 async function onLoggedIn(session){
+  currentUser = {id: session.user.id, email: session.user.email};
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appRoot').classList.remove('app-hidden');
   document.getElementById('userEmail').textContent = session.user.email;
-  await loadAll();
+
+  let {data:profile, error} = await supa.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+  if((!profile || error) ){
+    // el trigger de creación de perfil puede tardar un instante en usuarios recién creados; reintentamos una vez.
+    await new Promise(r=>setTimeout(r, 700));
+    ({data:profile, error} = await supa.from('profiles').select('*').eq('id', currentUser.id).maybeSingle());
+  }
+  if(error || !profile){
+    alert('No se pudo cargar tu perfil de usuario. Probá cerrar sesión y volver a entrar. Si el problema sigue, avisale al administrador.');
+    return;
+  }
+  currentProfile = profile;
+
+  if(profile.is_admin){
+    await mostrarPicker();
+  }else if(profile.proyecto_id){
+    const {data:proy} = await supa.from('proyectos').select('*').eq('id', profile.proyecto_id).maybeSingle();
+    currentProyecto = proy ? {id:proy.id, nombre:proy.nombre} : {id:profile.proyecto_id, nombre:'Establecimiento'};
+    await entrarAlProyecto();
+  }else{
+    document.getElementById('pickerScreen').classList.remove('app-hidden');
+    document.getElementById('proyectoList').innerHTML = '';
+    document.getElementById('btnNuevoProyecto').classList.add('app-hidden');
+    document.getElementById('proyectoPending').classList.remove('app-hidden');
+    document.getElementById('pickerTitle').textContent = 'Esperando asignación';
+    document.getElementById('pickerSub').textContent = '';
+  }
 }
 async function checkSession(){
   if(!supa) return;
   const {data:{session}} = await supa.auth.getSession();
   if(session) onLoggedIn(session);
+}
+
+/* ---------- Pantalla selector de establecimiento (solo admin) ---------- */
+async function mostrarPicker(){
+  document.getElementById('pickerTitle').textContent = 'Elegí un establecimiento';
+  document.getElementById('pickerSub').textContent = 'Seleccioná el establecimiento con el que querés trabajar.';
+  document.getElementById('proyectoPending').classList.add('app-hidden');
+  document.getElementById('btnNuevoProyecto').classList.remove('app-hidden');
+  document.getElementById('appRoot').classList.add('app-hidden');
+  document.getElementById('pickerScreen').classList.remove('app-hidden');
+  const {data:proyectos, error} = await supa.from('proyectos').select('*').order('nombre');
+  proyectosDisponibles = error ? [] : proyectos;
+  const list = document.getElementById('proyectoList');
+  list.innerHTML = proyectosDisponibles.map(p=>
+    `<button type="button" class="proyecto-item" onclick="elegirProyecto('${p.id}')">${escapeHtml(p.nombre)}</button>`
+  ).join('') || '<div class="proyecto-pending">Todavía no hay establecimientos creados.</div>';
+}
+async function elegirProyecto(id){
+  const p = proyectosDisponibles.find(x=>x.id===id);
+  if(!p) return;
+  currentProyecto = {id:p.id, nombre:p.nombre};
+  await entrarAlProyecto();
+}
+async function crearProyecto(){
+  const nombre = document.getElementById('nuevoProyectoNombre').value.trim();
+  const errEl = document.getElementById('nuevoProyectoError');
+  errEl.style.display = 'none';
+  if(!nombre){ errEl.textContent = 'Poné un nombre para el proyecto.'; errEl.style.display='block'; return; }
+  try{
+    const {data:inserted, error} = await supa.from('proyectos').insert({nombre}).select().single();
+    if(error){
+      if(error.code==='23505' || /duplicate/i.test(error.message)){
+        errEl.textContent = 'Ya existe un establecimiento con ese nombre.';
+      }else{
+        errEl.textContent = 'Error creando el proyecto: ' + error.message;
+      }
+      errEl.style.display='block';
+      return;
+    }
+    closeModal('modalNuevoProyecto');
+    document.getElementById('nuevoProyectoNombre').value = '';
+    currentProyecto = {id:inserted.id, nombre:inserted.nombre};
+    await entrarAlProyecto();
+  }catch(e){ errEl.textContent = 'Error creando el proyecto: ' + e.message; errEl.style.display='block'; }
+}
+async function entrarAlProyecto(){
+  document.getElementById('pickerScreen').classList.add('app-hidden');
+  document.getElementById('appRoot').classList.remove('app-hidden');
+  document.getElementById('proyectoNombreHeader').textContent = 'Costeo ' + currentProyecto.nombre;
+  const btnCambiar = document.getElementById('btnCambiarProyecto');
+  const navUsuarios = document.getElementById('navUsuarios');
+  if(currentProfile && currentProfile.is_admin){
+    btnCambiar.classList.remove('app-hidden');
+    navUsuarios.classList.remove('app-hidden');
+  }else{
+    btnCambiar.classList.add('app-hidden');
+    navUsuarios.classList.add('app-hidden');
+  }
+  await loadAll();
+}
+async function volverAlPicker(){
+  document.getElementById('appRoot').classList.add('app-hidden');
+  await mostrarPicker();
 }
 document.getElementById('loginPass')?.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 updateThemeButton();
@@ -911,10 +1123,12 @@ async function safeQuery(promise, label){
 
 async function loadAll(){
   try{
+    if(!currentProyecto){ console.error('loadAll llamado sin proyecto seleccionado'); return; }
+    const pid = currentProyecto.id;
     const [insumosRes, recetasRes, menuRes] = await Promise.all([
-      supa.from('insumos').select('*').order('nombre'),
-      supa.from('recetas').select('*, receta_ingredientes(*)').order('nombre'),
-      supa.from('menu_items').select('*').order('nombre'),
+      supa.from('insumos').select('*').eq('proyecto_id', pid).order('nombre'),
+      supa.from('recetas').select('*, receta_ingredientes(*)').eq('proyecto_id', pid).order('nombre'),
+      supa.from('menu_items').select('*').eq('proyecto_id', pid).order('nombre'),
     ]);
     if(insumosRes.error) throw insumosRes.error;
     if(recetasRes.error) throw recetasRes.error;
@@ -937,10 +1151,10 @@ async function loadAll(){
     const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD] = await Promise.all([
       safeQuery(supa.from('proveedores').select('*').order('nombre'), 'proveedores'),
       safeQuery(supa.from('familias').select('*').order('nombre'), 'familias'),
-      safeQuery(supa.from('precio_historico').select('*, insumos(nombre), proveedores(nombre)').order('mes'), 'precio_historico'),
-      safeQuery(supa.from('gastos').select('*, proveedores(nombre), familias(nombre)').order('fecha_fc', {ascending:false}), 'gastos'),
-      safeQuery(supa.from('ventas_diarias').select('*').order('fecha'), 'ventas_diarias'),
-      safeQuery(supa.from('caja_movimientos').select('*').order('cuenta').order('fecha'), 'caja_movimientos'),
+      safeQuery(supa.from('precio_historico').select('*, insumos(nombre), proveedores(nombre)').eq('proyecto_id', pid).order('mes'), 'precio_historico'),
+      safeQuery(supa.from('gastos').select('*, proveedores(nombre), familias(nombre)').eq('proyecto_id', pid).order('fecha_fc', {ascending:false}), 'gastos'),
+      safeQuery(supa.from('ventas_diarias').select('*').eq('proyecto_id', pid).order('fecha'), 'ventas_diarias'),
+      safeQuery(supa.from('caja_movimientos').select('*').eq('proyecto_id', pid).order('cuenta').order('fecha'), 'caja_movimientos'),
     ]);
 
     data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre}));
@@ -1096,6 +1310,7 @@ function renderAll(){
   renderGastos();
   renderTotalesGastos();
   renderEerr();
+  if(currentProfile && currentProfile.is_admin) renderUsuarios();
 }
 function renderResumen(){
   const totalInsumos = data.insumos.length, totalRecetas = data.recetas.length, totalMenu = data.menu.length;
@@ -1412,7 +1627,7 @@ async function savePrecioHistorico(){
   if(!mesVal){ alert('Elegí el mes.'); return; }
   if(precio<=0){ alert('Ingresá un precio válido.'); return; }
   const mes = mesVal + '-01';
-  const payload = {insumo_id, proveedor_id, mes, precio};
+  const payload = {insumo_id, proveedor_id, mes, precio, proyecto_id: currentProyecto.id};
   try{
     const {error} = await supa.from('precio_historico').insert(payload);
     if(error) throw error;
@@ -1593,6 +1808,7 @@ async function saveCajaDiaria(){
     viandas_cantidad: num('cajaDiariaViandasCantidad'), viandas_total: 0,
     terceros_cantidad: num('cajaDiariaTercerosCantidad'), terceros_total: 0,
     total: restauranteEfectivo + restauranteBco + restauranteMp,
+    proyecto_id: currentProyecto.id,
   };
   try{
     const {error} = await supa.from('ventas_diarias').insert(payload);
@@ -2036,6 +2252,52 @@ async function deleteProveedor(id){
   }catch(e){ alert('Error eliminando proveedor: ' + e.message); }
 }
 
+/* ---------- Usuarios (solo admin) ---------- */
+let usuariosData = [];
+async function renderUsuarios(){
+  const [{data:profiles, error:errP}, {data:proyectos, error:errPr}] = await Promise.all([
+    supa.from('profiles').select('*').order('email'),
+    supa.from('proyectos').select('*').order('nombre'),
+  ]);
+  if(errP || errPr){ console.error('renderUsuarios', errP||errPr); return; }
+  usuariosData = profiles || [];
+  proyectosDisponibles = proyectos || [];
+  const proyectoNombre = id => { const p = proyectosDisponibles.find(x=>x.id===id); return p ? p.nombre : null; };
+  const tbody = document.getElementById('tblUsuarios');
+  document.getElementById('countUsuarios').textContent = usuariosData.length;
+  if(usuariosData.length===0){ tbody.innerHTML=''; document.getElementById('emptyUsuarios').style.display='block'; return; }
+  document.getElementById('emptyUsuarios').style.display='none';
+  tbody.innerHTML = usuariosData.map(u=>`<tr>
+    <td>${escapeHtml(u.email||'-')}</td>
+    <td class="muted">${escapeHtml(proyectoNombre(u.proyecto_id) || 'Sin asignar')}</td>
+    <td class="muted">${u.is_admin ? 'Sí' : 'No'}</td>
+    <td class="actions">
+      <button class="btn secondary small" onclick="abrirAsignarUsuario('${u.id}')">Asignar</button>
+    </td></tr>`).join('');
+}
+function abrirAsignarUsuario(id){
+  const u = usuariosData.find(x=>x.id===id);
+  if(!u) return;
+  document.getElementById('asignarUsuarioId').value = u.id;
+  document.getElementById('asignarUsuarioEmail').textContent = u.email;
+  const sel = document.getElementById('asignarUsuarioProyecto');
+  sel.innerHTML = '<option value="">— sin asignar —</option>' + proyectosDisponibles.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+  sel.value = u.proyecto_id || '';
+  document.getElementById('asignarUsuarioAdmin').checked = !!u.is_admin;
+  openModal('modalAsignarUsuario');
+}
+async function guardarAsignacionUsuario(){
+  const id = document.getElementById('asignarUsuarioId').value;
+  const proyecto_id = document.getElementById('asignarUsuarioProyecto').value || null;
+  const is_admin = document.getElementById('asignarUsuarioAdmin').checked;
+  try{
+    const {error} = await supa.from('profiles').update({proyecto_id, is_admin}).eq('id', id);
+    if(error) throw error;
+    closeModal('modalAsignarUsuario');
+    await renderUsuarios();
+  }catch(e){ alert('Error asignando usuario: ' + e.message); }
+}
+
 /* ---------- Gastos: alta / edicion / baja ---------- */
 function fillGastoSelects(){
   const selP = document.getElementById('gastoProveedor');
@@ -2092,7 +2354,7 @@ async function saveGasto(){
       const {error} = await supa.from('gastos').update(payload).eq('id', id);
       if(error) throw error;
     }else{
-      const {error} = await supa.from('gastos').insert(payload);
+      const {error} = await supa.from('gastos').insert({...payload, proyecto_id: currentProyecto.id});
       if(error) throw error;
     }
     closeModal('modalGasto');
@@ -2154,7 +2416,7 @@ async function saveInsumo(){
       if(error) throw error;
     }else{
       const {error} = await supa.from('insumos').insert({
-        nombre, familia, unidad, precio_actual:nuevoPrecio, precio_anterior:nuevoPrecio, iva,
+        nombre, familia, unidad, precio_actual:nuevoPrecio, precio_anterior:nuevoPrecio, iva, proyecto_id: currentProyecto.id,
       });
       if(error) throw error;
     }
@@ -2222,7 +2484,7 @@ async function saveReceta(){
       const del = await supa.from('receta_ingredientes').delete().eq('receta_id', id);
       if(del.error) throw del.error;
     }else{
-      const {data:inserted, error} = await supa.from('recetas').insert({nombre, categoria}).select().single();
+      const {data:inserted, error} = await supa.from('recetas').insert({nombre, categoria, proyecto_id: currentProyecto.id}).select().single();
       if(error) throw error;
       recetaId = inserted.id;
     }
@@ -2286,7 +2548,7 @@ async function saveMenu(){
       const {error} = await supa.from('menu_items').update({nombre, categoria, receta_id:recetaId, precio_venta:precioVenta}).eq('id', id);
       if(error) throw error;
     }else{
-      const {error} = await supa.from('menu_items').insert({nombre, categoria, receta_id:recetaId, precio_venta:precioVenta});
+      const {error} = await supa.from('menu_items').insert({nombre, categoria, receta_id:recetaId, precio_venta:precioVenta, proyecto_id: currentProyecto.id});
       if(error) throw error;
     }
     closeModal('modalMenu');
