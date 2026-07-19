@@ -221,6 +221,16 @@
   }
   .proyecto-item:hover{border-color:var(--accent);}
   .proyecto-pending{color:var(--muted); font-size:13px; text-align:center; padding:20px 0;}
+  .proyecto-item{display:flex; align-items:center; gap:10px;}
+  .proyecto-item img{width:28px; height:28px; border-radius:6px; object-fit:cover; flex-shrink:0;}
+  .logo-drop{
+    border:2px dashed var(--border); border-radius:10px; padding:18px; text-align:center;
+    cursor:pointer; background:var(--panel2); transition:border-color .15s;
+  }
+  .logo-drop.dragover{border-color:var(--accent); background:rgba(79,140,255,.08);}
+  .logo-drop-text{color:var(--muted); font-size:12.5px;}
+  .logo-drop-preview{max-width:100%; max-height:120px; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;}
+  .proyecto-logo-header{height:34px; width:34px; border-radius:8px; object-fit:cover; vertical-align:middle; margin-right:8px;}
   .config-warning{
     background:rgba(230,126,34,.15); border:1px solid var(--orange); color:var(--orange);
     padding:14px 18px; border-radius:8px; margin:20px 28px; font-size:13px;
@@ -359,7 +369,7 @@
     <h2 id="pickerTitle">Elegí un establecimiento</h2>
     <p id="pickerSub">Seleccioná el establecimiento con el que querés trabajar.</p>
     <div class="proyecto-list" id="proyectoList"></div>
-    <button class="btn secondary" style="width:100%;" id="btnNuevoProyecto" onclick="openModal('modalNuevoProyecto')">+ Nuevo proyecto</button>
+    <button class="btn secondary" style="width:100%;" id="btnNuevoProyecto" onclick="abrirNuevoProyecto()">+ Nuevo proyecto</button>
     <div class="proyecto-pending app-hidden" id="proyectoPending">
       Tu usuario todavía no tiene un establecimiento asignado.<br>Pedile al administrador que te lo asigne.
     </div>
@@ -403,10 +413,19 @@
   <div class="modal">
     <h3>Nuevo proyecto</h3>
     <div class="field"><label>Nombre del establecimiento</label><input id="nuevoProyectoNombre" placeholder="Ej: Nua"></div>
+    <div class="field">
+      <label>Logo (opcional)</label>
+      <div class="logo-drop" id="logoDropZone">
+        <img id="logoPreviewImg" class="logo-drop-preview app-hidden" alt="Preview del logo">
+        <div class="logo-drop-text" id="logoDropText">Arrastrá una imagen acá, o tocá para elegir un archivo</div>
+        <button type="button" class="btn secondary small app-hidden" id="btnQuitarLogo">Quitar imagen</button>
+      </div>
+      <input type="file" id="logoFileInput" accept="image/*" style="display:none;">
+    </div>
     <div class="login-error" id="nuevoProyectoError"></div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalNuevoProyecto')">Cancelar</button>
-      <button class="btn" onclick="crearProyecto()">Crear</button>
+      <button class="btn" id="btnCrearProyecto" onclick="crearProyecto()">Crear</button>
     </div>
   </div>
 </div>
@@ -1116,7 +1135,7 @@ async function onLoggedIn(session){
     await mostrarPicker();
   }else if(profile.proyecto_id){
     const {data:proy} = await supa.from('proyectos').select('*').eq('id', profile.proyecto_id).maybeSingle();
-    currentProyecto = proy ? {id:proy.id, nombre:proy.nombre} : {id:profile.proyecto_id, nombre:'Establecimiento'};
+    currentProyecto = proy ? {id:proy.id, nombre:proy.nombre, logoUrl:proy.logo_url||null} : {id:profile.proyecto_id, nombre:'Establecimiento', logoUrl:null};
     await entrarAlProyecto();
   }else{
     document.getElementById('pickerScreen').classList.remove('app-hidden');
@@ -1145,20 +1164,71 @@ async function mostrarPicker(){
   proyectosDisponibles = error ? [] : proyectos;
   const list = document.getElementById('proyectoList');
   list.innerHTML = proyectosDisponibles.map(p=>
-    `<button type="button" class="proyecto-item" onclick="elegirProyecto('${p.id}')">${escapeHtml(p.nombre)}</button>`
+    `<button type="button" class="proyecto-item" onclick="elegirProyecto('${p.id}')">${p.logo_url ? `<img src="${escapeHtml(p.logo_url)}" alt="">` : ''}<span>${escapeHtml(p.nombre)}</span></button>`
   ).join('') || '<div class="proyecto-pending">Todavía no hay establecimientos creados.</div>';
 }
 async function elegirProyecto(id){
   const p = proyectosDisponibles.find(x=>x.id===id);
   if(!p) return;
-  currentProyecto = {id:p.id, nombre:p.nombre};
+  currentProyecto = {id:p.id, nombre:p.nombre, logoUrl:p.logo_url||null};
   await entrarAlProyecto();
+}
+
+/* ---------- Logo del proyecto (subir/arrastrar imagen) ---------- */
+let nuevoProyectoLogoFile = null;
+function abrirNuevoProyecto(){
+  document.getElementById('nuevoProyectoNombre').value = '';
+  document.getElementById('nuevoProyectoError').style.display = 'none';
+  quitarLogoSeleccionado();
+  openModal('modalNuevoProyecto');
+}
+function mostrarPreviewLogo(file){
+  nuevoProyectoLogoFile = file;
+  const img = document.getElementById('logoPreviewImg');
+  img.src = URL.createObjectURL(file);
+  img.classList.remove('app-hidden');
+  document.getElementById('logoDropText').textContent = file.name;
+  document.getElementById('btnQuitarLogo').classList.remove('app-hidden');
+}
+function quitarLogoSeleccionado(){
+  nuevoProyectoLogoFile = null;
+  document.getElementById('logoFileInput').value = '';
+  document.getElementById('logoPreviewImg').classList.add('app-hidden');
+  document.getElementById('logoPreviewImg').src = '';
+  document.getElementById('logoDropText').textContent = 'Arrastrá una imagen acá, o tocá para elegir un archivo';
+  document.getElementById('btnQuitarLogo').classList.add('app-hidden');
+}
+(function(){
+  const zone = document.getElementById('logoDropZone');
+  const input = document.getElementById('logoFileInput');
+  if(!zone || !input) return;
+  zone.addEventListener('click', (e)=>{ if(e.target.id!=='btnQuitarLogo') input.click(); });
+  input.addEventListener('change', ()=>{ if(input.files && input.files[0]) mostrarPreviewLogo(input.files[0]); });
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', ()=> zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e=>{
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file && file.type.startsWith('image/')) mostrarPreviewLogo(file);
+  });
+  document.getElementById('btnQuitarLogo').addEventListener('click', e=>{ e.stopPropagation(); quitarLogoSeleccionado(); });
+})();
+async function subirLogoProyecto(proyectoId, file){
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g,'') || 'png';
+  const path = `${proyectoId}.${ext}`;
+  const {error} = await supa.storage.from('logos').upload(path, file, {upsert:true});
+  if(error) throw error;
+  const {data} = supa.storage.from('logos').getPublicUrl(path);
+  return data.publicUrl + '?v=' + Date.now();
 }
 async function crearProyecto(){
   const nombre = document.getElementById('nuevoProyectoNombre').value.trim();
   const errEl = document.getElementById('nuevoProyectoError');
   errEl.style.display = 'none';
   if(!nombre){ errEl.textContent = 'Poné un nombre para el proyecto.'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btnCrearProyecto');
+  btn.disabled = true;
   try{
     const {data:inserted, error} = await supa.from('proyectos').insert({nombre}).select().single();
     if(error){
@@ -1170,16 +1240,26 @@ async function crearProyecto(){
       errEl.style.display='block';
       return;
     }
+    let logoUrl = null;
+    if(nuevoProyectoLogoFile){
+      try{
+        logoUrl = await subirLogoProyecto(inserted.id, nuevoProyectoLogoFile);
+        await supa.from('proyectos').update({logo_url: logoUrl}).eq('id', inserted.id);
+      }catch(e){ console.error('Error subiendo el logo', e); }
+    }
     closeModal('modalNuevoProyecto');
     document.getElementById('nuevoProyectoNombre').value = '';
-    currentProyecto = {id:inserted.id, nombre:inserted.nombre};
+    quitarLogoSeleccionado();
+    currentProyecto = {id:inserted.id, nombre:inserted.nombre, logoUrl};
     await entrarAlProyecto();
   }catch(e){ errEl.textContent = 'Error creando el proyecto: ' + e.message; errEl.style.display='block'; }
+  finally{ btn.disabled = false; }
 }
 async function entrarAlProyecto(){
   document.getElementById('pickerScreen').classList.add('app-hidden');
   document.getElementById('appRoot').classList.remove('app-hidden');
-  document.getElementById('proyectoNombreHeader').textContent = 'Costeo ' + currentProyecto.nombre;
+  const headerEl = document.getElementById('proyectoNombreHeader');
+  headerEl.innerHTML = (currentProyecto.logoUrl ? `<img src="${escapeHtml(currentProyecto.logoUrl)}" class="proyecto-logo-header" alt="">` : '') + 'Costeo ' + escapeHtml(currentProyecto.nombre);
   const btnCambiar = document.getElementById('btnCambiarProyecto');
   const navUsuarios = document.getElementById('navUsuarios');
   if(currentProfile && currentProfile.is_admin){
