@@ -673,7 +673,7 @@
         <h2>Gastos <span class="badge-count" id="countGastos">0</span></h2>
         <div class="filters">
           <select id="filtroGastosFamilia"><option value="">Todas las familias</option></select>
-          <button class="btn" id="btnAddGasto">+ Agregar gasto</button>
+          <button class="btn" id="btnAddGasto">+ Agregar</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -752,7 +752,7 @@
       </div>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>Nombre</th><th></th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Familia</th><th>Tipo de gasto</th><th></th></tr></thead>
         <tbody id="tblProveedores"></tbody>
       </table>
       </div>
@@ -869,8 +869,12 @@
     <h3 id="modalProveedorTitle">Nuevo proveedor</h3>
     <input type="hidden" id="proveedorId">
     <div class="field"><label>Nombre</label><input id="proveedorNombre" placeholder="Ej: SIPE"></div>
+    <div class="row2">
+      <div class="field"><label>Familia</label><select id="proveedorFamilia"><option value="">— sin familia —</option></select></div>
+      <div class="field"><label>Tipo de gasto (por defecto)</label><input id="proveedorTipoGastoDefault" placeholder="Ej: COMIDAS"></div>
+    </div>
     <div class="modal-actions">
-      <button class="btn secondary" onclick="closeModal('modalProveedor')">Cancelar</button>
+      <button class="btn secondary" onclick="cerrarModalProveedor()">Cancelar</button>
       <button class="btn" onclick="saveProveedor()">Guardar</button>
     </div>
   </div>
@@ -965,7 +969,13 @@
       <div class="field"><label>Fecha (carga)</label><input id="gastoFechaCarga" type="date"></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Proveedor</label><select id="gastoProveedor"><option value="">— sin proveedor —</option></select></div>
+      <div class="field">
+        <label>Proveedor</label>
+        <div style="display:flex; gap:6px;">
+          <select id="gastoProveedor" style="flex:1;"><option value="">— sin proveedor —</option></select>
+          <button type="button" class="btn secondary small" onclick="abrirProveedorDesdeGasto()">+ Proveedor</button>
+        </div>
+      </div>
       <div class="field"><label>Familia</label><select id="gastoFamilia"><option value="">— sin familia —</option></select></div>
     </div>
     <div class="row2">
@@ -1325,7 +1335,7 @@ async function loadAll(){
       safeQuery(supa.from('caja_movimientos').select('*').eq('proyecto_id', pid).order('cuenta').order('fecha'), 'caja_movimientos'),
     ]);
 
-    data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre}));
+    data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||''}));
     data.familias = familiasD.map(f=>({id:f.id, nombre:f.nombre, tipoGasto:f.tipo_gasto}));
     data.precioHistorico = precioHistD.map(p=>({
       id:p.id, mes:p.mes, precio:Number(p.precio),
@@ -2370,6 +2380,16 @@ async function deleteFamilia(id){
 }
 
 /* ---------- Proveedores ---------- */
+function familiaNombrePorId(id){
+  const f = data.familias.find(x=>x.id===id);
+  return f ? f.nombre : '-';
+}
+function fillProveedorFamiliaSelect(){
+  const sel = document.getElementById('proveedorFamilia');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— sin familia —</option>' + data.familias.map(f=>`<option value="${f.id}">${escapeHtml(f.nombre)}</option>`).join('');
+  sel.value = cur;
+}
 function renderProveedores(){
   const tbody = document.getElementById('tblProveedores');
   document.getElementById('countProveedores').textContent = data.proveedores.length;
@@ -2377,6 +2397,8 @@ function renderProveedores(){
   document.getElementById('emptyProveedores').style.display='none';
   tbody.innerHTML = data.proveedores.map(p=>`<tr>
     <td>${escapeHtml(p.nombre)}</td>
+    <td class="muted">${p.familiaId ? escapeHtml(familiaNombrePorId(p.familiaId)) : '-'}</td>
+    <td class="muted">${escapeHtml(p.tipoGastoDefault||'-')}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="editProveedor('${p.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteProveedor('${p.id}')">Eliminar</button>
@@ -2386,6 +2408,9 @@ document.getElementById('btnAddProveedor').addEventListener('click', ()=>{
   document.getElementById('modalProveedorTitle').textContent = 'Nuevo proveedor';
   document.getElementById('proveedorId').value = '';
   document.getElementById('proveedorNombre').value = '';
+  fillProveedorFamiliaSelect();
+  document.getElementById('proveedorFamilia').value = '';
+  document.getElementById('proveedorTipoGastoDefault').value = '';
   openModal('modalProveedor');
 });
 function editProveedor(id){
@@ -2393,23 +2418,59 @@ function editProveedor(id){
   document.getElementById('modalProveedorTitle').textContent = 'Editar proveedor';
   document.getElementById('proveedorId').value = p.id;
   document.getElementById('proveedorNombre').value = p.nombre;
+  fillProveedorFamiliaSelect();
+  document.getElementById('proveedorFamilia').value = p.familiaId||'';
+  document.getElementById('proveedorTipoGastoDefault').value = p.tipoGastoDefault||'';
   openModal('modalProveedor');
+}
+/* Flujo de "+ Proveedor" desde el modal de Gasto */
+let proveedorFlowFromGasto = false;
+function abrirProveedorDesdeGasto(){
+  proveedorFlowFromGasto = true;
+  closeModal('modalGasto');
+  document.getElementById('modalProveedorTitle').textContent = 'Nuevo proveedor';
+  document.getElementById('proveedorId').value = '';
+  document.getElementById('proveedorNombre').value = '';
+  fillProveedorFamiliaSelect();
+  document.getElementById('proveedorFamilia').value = '';
+  document.getElementById('proveedorTipoGastoDefault').value = '';
+  openModal('modalProveedor');
+}
+function cerrarModalProveedor(){
+  closeModal('modalProveedor');
+  if(proveedorFlowFromGasto){
+    proveedorFlowFromGasto = false;
+    openModal('modalGasto');
+  }
 }
 async function saveProveedor(){
   const id = document.getElementById('proveedorId').value;
   const nombre = document.getElementById('proveedorNombre').value.trim();
   if(!nombre){ alert('Poné un nombre para el proveedor.'); return; }
+  const familia_id = document.getElementById('proveedorFamilia').value || null;
+  const tipo_gasto_default = document.getElementById('proveedorTipoGastoDefault').value.trim();
   try{
+    let newId = id;
     if(id){
-      const {error} = await supa.from('proveedores').update({nombre}).eq('id', id);
+      const {error} = await supa.from('proveedores').update({nombre, familia_id, tipo_gasto_default}).eq('id', id);
       if(error) throw error;
     }else{
-      const {error} = await supa.from('proveedores').insert({nombre});
+      const {data:inserted, error} = await supa.from('proveedores').insert({nombre, familia_id, tipo_gasto_default}).select().single();
       if(error) throw error;
+      newId = inserted.id;
     }
     closeModal('modalProveedor');
     await loadAll();
-  }catch(e){ alert('Error guardando proveedor: ' + e.message); }
+    if(proveedorFlowFromGasto){
+      proveedorFlowFromGasto = false;
+      openModal('modalGasto');
+      fillGastoSelects();
+      document.getElementById('gastoProveedor').value = newId;
+      aplicarDefaultsProveedorEnGasto();
+    }
+  }catch(e){
+    alert('Error guardando proveedor: ' + e.message);
+  }
 }
 async function deleteProveedor(id){
   if(!confirm('¿Eliminar este proveedor?')) return;
@@ -2477,6 +2538,15 @@ function fillGastoSelects(){
   selF.innerHTML = '<option value="">— sin familia —</option>' + data.familias.map(f=>`<option value="${f.id}">${escapeHtml(f.nombre)}</option>`).join('');
   selF.value = curF;
 }
+function aplicarDefaultsProveedorEnGasto(){
+  const pid = document.getElementById('gastoProveedor').value;
+  const p = data.proveedores.find(x=>x.id===pid);
+  if(p){
+    if(p.familiaId) document.getElementById('gastoFamilia').value = p.familiaId;
+    if(p.tipoGastoDefault) document.getElementById('gastoTipoGasto').value = p.tipoGastoDefault;
+  }
+}
+document.getElementById('gastoProveedor').addEventListener('change', aplicarDefaultsProveedorEnGasto);
 document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   document.getElementById('modalGastoTitle').textContent = 'Nuevo gasto';
   document.getElementById('gastoId').value = '';
