@@ -486,6 +486,7 @@
   <button data-view="ventas" class="active">Ventas y Caja</button>
   <button data-view="totales">Total venta</button>
   <button data-view="gastos">Gastos</button>
+  <button data-view="costoslaborales">Costos laborales</button>
   <button data-view="totalesgastos">Totales gastos</button>
   <button data-view="eerr">EERR</button>
 </nav>
@@ -685,6 +686,29 @@
       </table>
       </div>
       <div class="empty" id="emptyGastos" style="display:none;">Todavía no cargaste gastos.</div>
+    </div>
+  </div>
+
+  <!-- ========== ADMINISTRACION: Costos laborales ========== -->
+  <div class="view" id="view-costoslaborales">
+    <div class="cards" id="costosLaboralesCards"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Costos laborales <span class="badge-count" id="countCostosLaborales">0</span></h2>
+        <div class="filters">
+          <select id="filtroCostosLaboralesFamilia"><option value="">Todas las familias</option></select>
+          <button class="btn" id="btnAddCostoLaboral">+ Agregar</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th></th>
+        </tr></thead>
+        <tbody id="tblCostosLaborales"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyCostosLaborales" style="display:none;">Todavía no cargaste costos laborales.</div>
     </div>
   </div>
 
@@ -1486,6 +1510,7 @@ function renderAll(){
   renderVentasCaja();
   renderTotales();
   renderGastos();
+  renderCostosLaborales();
   renderTotalesGastos();
   renderEerr();
   if(currentProfile && currentProfile.is_admin) renderUsuarios();
@@ -2004,13 +2029,18 @@ async function saveCajaDiaria(){
 }
 
 /* ---------- Gastos ---------- */
+/* La pestaña "Gastos" excluye las familias de Costos laborales/administrativos:
+   esas viven exclusivamente en la pestaña "Costos laborales" para no duplicarlas. */
 let filtroGastosFamiliaVal = '';
 function renderGastos(){
+  const baseRows = data.gastos.filter(g=> !esFamiliaCostoLaboral(g.familiaNombre));
+  const familiasNoLaborales = data.familias.filter(f=>!esFamiliaCostoLaboral(f.nombre));
+
   const selF = document.getElementById('filtroGastosFamilia');
-  selF.innerHTML = '<option value="">Todas las familias</option>' + data.familias.map(f=>`<option value="${escapeHtml(f.nombre)}">${escapeHtml(f.nombre)}</option>`).join('');
+  selF.innerHTML = '<option value="">Todas las familias</option>' + familiasNoLaborales.map(f=>`<option value="${escapeHtml(f.nombre)}">${escapeHtml(f.nombre)}</option>`).join('');
   selF.value = filtroGastosFamiliaVal;
 
-  const rows = data.gastos.filter(g=> !filtroGastosFamiliaVal || g.familiaNombre===filtroGastosFamiliaVal);
+  const rows = baseRows.filter(g=> !filtroGastosFamiliaVal || g.familiaNombre===filtroGastosFamiliaVal);
   const totalGastos = rows.reduce((s,g)=>s+g.total,0);
   const promedio = rows.length>0 ? totalGastos/rows.length : 0;
   document.getElementById('gastosCards').innerHTML = [
@@ -2019,7 +2049,7 @@ function renderGastos(){
     {num:fmt(promedio), label:'Gasto promedio'},
   ].map(c=>`<div class="card"><div class="num" style="font-size:19px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
 
-  document.getElementById('countGastos').textContent = data.gastos.length;
+  document.getElementById('countGastos').textContent = baseRows.length;
   const tbody = document.getElementById('tblGastos');
   if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyGastos').style.display='block'; return; }
   document.getElementById('emptyGastos').style.display='none';
@@ -2036,6 +2066,44 @@ function renderGastos(){
 }
 document.getElementById('filtroGastosFamilia').addEventListener('change', e=>{
   filtroGastosFamiliaVal = e.target.value; renderGastos();
+});
+
+/* ---------- Costos laborales ---------- */
+let filtroCostosLaboralesFamiliaVal = '';
+function renderCostosLaborales(){
+  const baseRows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre));
+  const familiasLaborales = data.familias.filter(f=>esFamiliaCostoLaboral(f.nombre));
+
+  const selF = document.getElementById('filtroCostosLaboralesFamilia');
+  selF.innerHTML = '<option value="">Todas las familias</option>' + familiasLaborales.map(f=>`<option value="${escapeHtml(f.nombre)}">${escapeHtml(f.nombre)}</option>`).join('');
+  selF.value = filtroCostosLaboralesFamiliaVal;
+
+  const rows = baseRows.filter(g=> !filtroCostosLaboralesFamiliaVal || g.familiaNombre===filtroCostosLaboralesFamiliaVal);
+  const totalGastos = rows.reduce((s,g)=>s+g.total,0);
+  const promedio = rows.length>0 ? totalGastos/rows.length : 0;
+  document.getElementById('costosLaboralesCards').innerHTML = [
+    {num:fmt(totalGastos), label:'Total costos laborales (2026)'},
+    {num:rows.length, label:'Comprobantes cargados'},
+    {num:fmt(promedio), label:'Costo promedio'},
+  ].map(c=>`<div class="card"><div class="num" style="font-size:19px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
+
+  document.getElementById('countCostosLaborales').textContent = baseRows.length;
+  const tbody = document.getElementById('tblCostosLaborales');
+  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyCostosLaborales').style.display='block'; return; }
+  document.getElementById('emptyCostosLaborales').style.display='none';
+  const sorted = rows.slice().sort((a,b)=> (b.fechaFc||b.fechaCarga||'').localeCompare(a.fechaFc||a.fechaCarga||''));
+  tbody.innerHTML = sorted.map(g=>`<tr class="${g.total<0?'row-neg':''}">
+    <td>${fmtDate(g.fechaFc||g.fechaCarga)}</td><td>${escapeHtml(g.proveedorNombre)}</td>
+    <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
+    <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
+    <td><b>${fmt(g.total)}</b></td>
+    <td class="actions">
+      <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
+      <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
+    </td></tr>`).join('');
+}
+document.getElementById('filtroCostosLaboralesFamilia').addEventListener('change', e=>{
+  filtroCostosLaboralesFamiliaVal = e.target.value; renderCostosLaborales();
 });
 
 /* ---------- Totales gastos (gráfico de torta) ---------- */
@@ -2209,7 +2277,9 @@ function eerrGastosPorMes(){
   data.gastos.forEach(g=>{
     const k = monthKey(g.fechaFc || g.fechaCarga); if(!k) return;
     if(!map[k]) map[k] = {};
-    const fam = g.familiaNombre || '(sin familia)';
+    /* Normalizado a mayúsculas para que el gasto sume en su línea de EERR sin importar
+       cómo haya quedado tipeada la familia (ej: "Bonos" vs "BONOS"). */
+    const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
     map[k][fam] = (map[k][fam]||0) + g.total;
   });
   return map;
@@ -2242,7 +2312,7 @@ function calcularEerrMes(ventasMes, famMap){
       popTo(level);
       stack.push({level, idx:i, key:row.key, sum:0});
     } else if(row.t==='d'){
-      const val = (famMap && famMap[row.label]) || 0;
+      const val = (famMap && famMap[row.label.trim().toUpperCase()]) || 0;
       rowVals[i] = val;
       if(stack.length) stack[stack.length-1].sum += val;
     }
@@ -2528,6 +2598,14 @@ async function guardarAsignacionUsuario(){
 }
 
 /* ---------- Gastos: alta / edicion / baja ---------- */
+/* Familias que forman parte de Costos Fijos / Indirectos / Costos laborales (incluye
+   el sub-grupo "administrativos"). La comparación es case-insensitive para no perder
+   gastos por diferencias de mayúsculas/minúsculas al cargar la familia. */
+const FAMILIAS_COSTOS_LABORALES = ['SUELDOS','AGUINALDO','PERSONAL EXTRA','CARGAS SOCIALES','LIQUIDACION','ADELANTOS','HORAS EXTRA','BONOS','SUELDOS ADMINISTRATIVOS'];
+function esFamiliaCostoLaboral(nombre){
+  return FAMILIAS_COSTOS_LABORALES.includes(String(nombre||'').trim().toUpperCase());
+}
+let gastoModalContext = 'gastos'; // 'gastos' | 'laborales' — controla qué familias se listan en el modal
 function fillGastoSelects(){
   const selP = document.getElementById('gastoProveedor');
   const curP = selP.value;
@@ -2535,7 +2613,10 @@ function fillGastoSelects(){
   selP.value = curP;
   const selF = document.getElementById('gastoFamilia');
   const curF = selF.value;
-  selF.innerHTML = '<option value="">— sin familia —</option>' + data.familias.map(f=>`<option value="${f.id}">${escapeHtml(f.nombre)}</option>`).join('');
+  const familiasList = gastoModalContext==='laborales'
+    ? data.familias.filter(f=>esFamiliaCostoLaboral(f.nombre))
+    : data.familias;
+  selF.innerHTML = '<option value="">— sin familia —</option>' + familiasList.map(f=>`<option value="${f.id}">${escapeHtml(f.nombre)}</option>`).join('');
   selF.value = curF;
 }
 function aplicarDefaultsProveedorEnGasto(){
@@ -2548,7 +2629,23 @@ function aplicarDefaultsProveedorEnGasto(){
 }
 document.getElementById('gastoProveedor').addEventListener('change', aplicarDefaultsProveedorEnGasto);
 document.getElementById('btnAddGasto').addEventListener('click', ()=>{
+  gastoModalContext = 'gastos';
   document.getElementById('modalGastoTitle').textContent = 'Nuevo gasto';
+  document.getElementById('gastoId').value = '';
+  document.getElementById('gastoFechaFc').value = '';
+  document.getElementById('gastoFechaCarga').value = '';
+  fillGastoSelects();
+  document.getElementById('gastoProveedor').value = '';
+  document.getElementById('gastoFamilia').value = '';
+  document.getElementById('gastoTipoGasto').value = '';
+  document.getElementById('gastoTipoComprobante').value = '';
+  document.getElementById('gastoNComprobante').value = '';
+  document.getElementById('gastoTotal').value = '';
+  openModal('modalGasto');
+});
+document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
+  gastoModalContext = 'laborales';
+  document.getElementById('modalGastoTitle').textContent = 'Nuevo costo laboral';
   document.getElementById('gastoId').value = '';
   document.getElementById('gastoFechaFc').value = '';
   document.getElementById('gastoFechaCarga').value = '';
@@ -2563,7 +2660,8 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
 });
 function editGasto(id){
   const g = data.gastos.find(x=>x.id===id);
-  document.getElementById('modalGastoTitle').textContent = 'Editar gasto';
+  gastoModalContext = esFamiliaCostoLaboral(g.familiaNombre) ? 'laborales' : 'gastos';
+  document.getElementById('modalGastoTitle').textContent = gastoModalContext==='laborales' ? 'Editar costo laboral' : 'Editar gasto';
   document.getElementById('gastoId').value = g.id;
   document.getElementById('gastoFechaFc').value = g.fechaFc||'';
   document.getElementById('gastoFechaCarga').value = g.fechaCarga||'';
