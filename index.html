@@ -290,6 +290,7 @@
   .eerr-hl-graybg td:first-child{background:var(--gray-strong);}
   .eerr-cell-pos{color:var(--green);}
   .eerr-cell-neg{color:var(--red);}
+  .eerr-pct{display:block; font-size:10px; font-weight:400; color:var(--muted); margin-top:1px;}
 
   #splashScreen{
     position:fixed; inset:0; background:var(--bg); z-index:300;
@@ -2377,6 +2378,11 @@ function renderEerr(){
   };
   const EERR_SIGNED = new Set(['resultadoNeto1','resultadoNeto2','margenBruto','resultadoOperativo','resultadoAntesImpuestos']);
 
+  // Índice de la fila TOTAL INGRESOS: cada % mostrado en una celda es val/totalIngresos
+  // del mismo mes. Como val ya se arma como suma de sus sub-líneas (ver calcularEerrMes),
+  // el % de un total siempre es la suma de los % de sus componentes.
+  const totalIngresosIdx = EERR_STRUCTURE.findIndex(r=>r.key==='totalIngresos');
+
   tbody.innerHTML = EERR_STRUCTURE.map((row, i)=>{
     if(row.t==='blank') return `<tr class="eerr-row-blank"><td colspan="${meses.length+1}"></td></tr>`;
     const lvlClass = row.lvl ? `eerr-lvl-${row.lvl}` : '';
@@ -2385,8 +2391,10 @@ function renderEerr(){
     const signed = row.key && EERR_SIGNED.has(row.key);
     const cells = valsPorMes.map(vals=>{
       const v = vals[i]||0;
+      const totalIng = vals[totalIngresosIdx]||0;
+      const pct = totalIng ? (v/totalIng*100) : 0;
       const cellCls = signed ? (v<0?' class="eerr-cell-neg"':' class="eerr-cell-pos"') : '';
-      return `<td${cellCls}>${fmt(v)}</td>`;
+      return `<td${cellCls}>${fmt(v)}<span class="eerr-pct">${pct.toFixed(1)}%</span></td>`;
     }).join('');
     return `<tr class="${rowClass} ${lvlClass}"><td>${escapeHtml(row.label)}</td>${cells}</tr>`;
   }).join('');
