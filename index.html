@@ -740,7 +740,12 @@
   <!-- ========== ADMINISTRACION: EERR ========== -->
   <div class="view" id="view-eerr">
     <div class="panel">
-      <div class="panel-head"><h2>Estado de resultados (EERR) — detalle mensual</h2></div>
+      <div class="panel-head">
+        <h2>Estado de resultados (EERR) — detalle mensual</h2>
+        <div class="filters">
+          <button class="btn secondary small" id="btnToggleEerrMeses" style="display:none;">Ver meses anteriores</button>
+        </div>
+      </div>
       <div class="table-scroll">
       <table class="eerr-table">
         <thead id="theadEerr"></thead>
@@ -2346,19 +2351,40 @@ function calcularEerrMes(ventasMes, famMap){
   return rowVals;
 }
 
+// Controla si el EERR muestra todos los meses o solo el mes corriente.
+// Por defecto arranca en false: se ve únicamente el mes corriente, y los
+// anteriores quedan ocultos hasta que Diego los despliega con el botón.
+let eerrMostrarTodosMeses = false;
+
 function renderEerr(){
   const ventasPorMes = eerrVentasPorMes();
   const gastosPorMes = eerrGastosPorMes();
-  const meses = [...new Set([...Object.keys(ventasPorMes), ...Object.keys(gastosPorMes)])].sort();
+  const allMeses = [...new Set([...Object.keys(ventasPorMes), ...Object.keys(gastosPorMes)])].sort();
 
   const thead = document.getElementById('theadEerr');
   const tbody = document.getElementById('tblEerr');
   const emptyEl = document.getElementById('emptyEerr');
+  const toggleBtn = document.getElementById('btnToggleEerrMeses');
 
-  if(meses.length===0){
-    thead.innerHTML=''; tbody.innerHTML=''; emptyEl.style.display='block'; return;
+  if(allMeses.length===0){
+    thead.innerHTML=''; tbody.innerHTML=''; emptyEl.style.display='block'; toggleBtn.style.display='none'; return;
   }
   emptyEl.style.display='none';
+
+  const now = new Date();
+  const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+
+  let meses = allMeses;
+  if(allMeses.length > 1){
+    toggleBtn.style.display = 'inline-block';
+    toggleBtn.textContent = eerrMostrarTodosMeses ? 'Ocultar meses anteriores' : 'Ver meses anteriores';
+    if(!eerrMostrarTodosMeses){
+      const mesActual = allMeses.includes(currentMonthKey) ? currentMonthKey : allMeses[allMeses.length-1];
+      meses = [mesActual];
+    }
+  } else {
+    toggleBtn.style.display = 'none';
+  }
 
   thead.innerHTML = `<tr><th>Detalle</th>${meses.map(k=>`<th>${fmtMes(k+'-01')}</th>`).join('')}</tr>`;
 
@@ -2399,6 +2425,10 @@ function renderEerr(){
     return `<tr class="${rowClass} ${lvlClass}"><td>${escapeHtml(row.label)}</td>${cells}</tr>`;
   }).join('');
 }
+document.getElementById('btnToggleEerrMeses').addEventListener('click', ()=>{
+  eerrMostrarTodosMeses = !eerrMostrarTodosMeses;
+  renderEerr();
+});
 
 /* ---------- Familias ---------- */
 function fillFamiliaDatalist(){
