@@ -2775,7 +2775,18 @@ async function renderUsuarios(){
     <td class="muted">${u.is_admin ? 'Sí' : 'No'}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="abrirAsignarUsuario('${u.id}')">Asignar</button>
+      ${(currentUser && u.id===currentUser.id) ? '' : `<button class="icon-trash-btn" title="Eliminar usuario" onclick="eliminarUsuario('${u.id}')">${TRASH_ICON_SVG}</button>`}
     </td></tr>`).join('');
+}
+async function eliminarUsuario(id){
+  if(!currentProfile || !currentProfile.is_admin) return;
+  const u = usuariosData.find(x=>x.id===id);
+  if(!confirm(`¿Eliminar el perfil de ${u ? u.email : 'este usuario'}? Esta acción no se puede deshacer.`)) return;
+  try{
+    const {error} = await supa.from('profiles').delete().eq('id', id);
+    if(error) throw error;
+    await renderUsuarios();
+  }catch(e){ alert('Error eliminando usuario: ' + e.message); }
 }
 function abrirAsignarUsuario(id){
   const u = usuariosData.find(x=>x.id===id);
