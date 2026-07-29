@@ -507,6 +507,13 @@
 
   <!-- ========== COSTO: Resumen ========== -->
   <div class="view active" id="view-resumen">
+    <h3 id="resumenMesActualTitulo" style="margin:0 0 12px; font-size:15px; font-weight:600;"></h3>
+    <div class="cards" id="resumenMesActualCards"></div>
+
+    <h3 id="resumenMesAnteriorTitulo" style="margin:22px 0 12px; font-size:15px; font-weight:600; color:var(--muted);"></h3>
+    <div class="cards" id="resumenMesAnteriorCards"></div>
+
+    <div style="margin:26px 0 10px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; font-weight:600;">Catálogo</div>
     <div class="cards" id="resumenCards"></div>
   </div>
 
@@ -1546,6 +1553,52 @@ function renderAll(){
   if(currentProfile && currentProfile.is_admin) renderUsuarios();
 }
 function renderResumen(){
+  // ---- Resumen financiero: mes corriente + mes anterior (con respecto a los datos cargados) ----
+  const ventasPorMes = eerrVentasPorMes();
+  const gastosPorMes = eerrGastosPorMes();
+  const allMeses = [...new Set([...Object.keys(ventasPorMes), ...Object.keys(gastosPorMes)])].sort();
+
+  const totalIngresosIdx = EERR_STRUCTURE.findIndex(r=>r.key==='totalIngresos');
+  const totalEgresosIdx = EERR_STRUCTURE.findIndex(r=>r.key==='totalEgresos1');
+  const resultadoIdx = EERR_STRUCTURE.findIndex(r=>r.key==='resultadoNeto1');
+
+  function resumenDeMes(key){
+    if(!key) return null;
+    const rowVals = calcularEerrMes(ventasPorMes[key], gastosPorMes[key]);
+    return {
+      ingresos: rowVals[totalIngresosIdx]||0,
+      egresos: rowVals[totalEgresosIdx]||0,
+      resultado: rowVals[resultadoIdx]||0,
+    };
+  }
+  function cardsFinancieras(r){
+    if(!r) return `<div class="empty">Todavía no hay datos cargados para este mes.</div>`;
+    return [
+      {num:fmt(r.ingresos), label:'Ventas totales', cls:'eerr-cell-pos'},
+      {num:fmt(r.egresos), label:'Egresos totales', cls:'eerr-cell-neg'},
+      {num:fmt(r.resultado), label:'Resultado neto', cls: r.resultado<0 ? 'eerr-cell-neg' : 'eerr-cell-pos'},
+    ].map(c=>`<div class="card"><div class="num ${c.cls}" style="font-size:21px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
+  }
+
+  const now = new Date();
+  const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const mesActualKey = allMeses.includes(currentMonthKey) ? currentMonthKey : (allMeses[allMeses.length-1] || null);
+  const idxActual = allMeses.indexOf(mesActualKey);
+  const mesAnteriorKey = idxActual > 0 ? allMeses[idxActual-1] : null;
+
+  document.getElementById('resumenMesActualTitulo').textContent = mesActualKey
+    ? `Resumen financiero — ${fmtMes(mesActualKey+'-01')}`
+    : 'Resumen financiero';
+  document.getElementById('resumenMesActualCards').innerHTML = cardsFinancieras(resumenDeMes(mesActualKey));
+
+  document.getElementById('resumenMesAnteriorTitulo').textContent = mesAnteriorKey
+    ? `Mes anterior — ${fmtMes(mesAnteriorKey+'-01')}`
+    : 'Mes anterior';
+  document.getElementById('resumenMesAnteriorCards').innerHTML = mesAnteriorKey
+    ? cardsFinancieras(resumenDeMes(mesAnteriorKey))
+    : `<div class="empty">Todavía no hay un mes anterior con datos cargados.</div>`;
+
+  // ---- Catálogo (insumos/recetas/menú) ----
   const totalInsumos = data.insumos.length, totalRecetas = data.recetas.length, totalMenu = data.menu.length;
   const alertas = data.menu.map(m=>({m, c:menuComputed(m)})).filter(x=>x.c.estado.cls!=='ok');
   const cards = [
