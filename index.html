@@ -7,8 +7,18 @@
 <script>
   (function(){
     try{
-      var saved = localStorage.getItem('costeoNidoTheme');
-      document.documentElement.setAttribute('data-theme', saved==='light' ? 'light' : 'dark');
+      // Modo noche automático: oscuro de 20:00 a 07:00, claro el resto del día.
+      // Si el usuario ya lo cambió a mano alguna vez, se respeta ese valor manual.
+      var mode = localStorage.getItem('costeoNidoThemeMode') || 'auto';
+      var theme;
+      if(mode === 'manual'){
+        theme = localStorage.getItem('costeoNidoTheme') === 'light' ? 'light' : 'dark';
+      }else{
+        var h = new Date().getHours();
+        theme = (h >= 20 || h < 7) ? 'dark' : 'light';
+        localStorage.setItem('costeoNidoTheme', theme);
+      }
+      document.documentElement.setAttribute('data-theme', theme);
     }catch(e){}
   })();
 </script>
@@ -1176,12 +1186,36 @@ function toggleTheme(){
   const current = document.documentElement.getAttribute('data-theme');
   const next = current==='light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', next);
-  try{ localStorage.setItem('costeoNidoTheme', next); }catch(e){}
+  try{
+    localStorage.setItem('costeoNidoTheme', next);
+    // A partir de un cambio manual, dejamos de aplicar el horario automático
+    // hasta que el usuario vuelva a tocar el botón (el valor elegido queda fijo).
+    localStorage.setItem('costeoNidoThemeMode', 'manual');
+  }catch(e){}
   updateThemeButton();
   // Redibujar gráficos para que tomen los colores del nuevo tema.
   if(typeof renderPrecios==='function') renderPrecios();
   if(typeof renderTotalesGastos==='function') renderTotalesGastos();
 }
+// Mientras el modo esté en automático, revisamos cada minuto si el horario
+// (20:00 a 07:00 = oscuro, resto = claro) cambió y actualizamos el tema solo.
+function aplicarTemaAutomaticoSiCorresponde(){
+  try{
+    const mode = localStorage.getItem('costeoNidoThemeMode') || 'auto';
+    if(mode !== 'auto') return;
+    const h = new Date().getHours();
+    const auto = (h >= 20 || h < 7) ? 'dark' : 'light';
+    const actual = document.documentElement.getAttribute('data-theme');
+    if(auto !== actual){
+      document.documentElement.setAttribute('data-theme', auto);
+      localStorage.setItem('costeoNidoTheme', auto);
+      updateThemeButton();
+      if(typeof renderPrecios==='function') renderPrecios();
+      if(typeof renderTotalesGastos==='function') renderTotalesGastos();
+    }
+  }catch(e){}
+}
+setInterval(aplicarTemaAutomaticoSiCorresponde, 60000);
 async function doLogout(){
   await supa.auth.signOut();
   location.reload();
