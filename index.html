@@ -604,7 +604,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th>
+          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th></th>
         </tr></thead>
         <tbody id="tblVentas"></tbody>
       </table>
@@ -985,6 +985,24 @@
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalCajaDiaria')">Cancelar</button>
       <button class="btn" id="btnGuardarCajaDiaria" onclick="saveCajaDiaria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR ELIMINAR CAJA DIARIA -->
+<div class="overlay" id="modalEliminarCaja">
+  <div class="modal">
+    <h3>Eliminar caja diaria</h3>
+    <p class="hint" id="eliminarCajaTexto" style="font-size:13px; color:var(--text); margin:-8px 0 16px;"></p>
+    <div class="field">
+      <label>¿Por qué eliminás esta caja? (obligatorio)</label>
+      <textarea id="eliminarCajaMotivo" maxlength="250" rows="4" placeholder="Contame el motivo de la eliminación..."
+        style="width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:9px 10px; border-radius:7px; font-size:13.5px; font-family:inherit; resize:vertical;"></textarea>
+      <div class="hint" style="text-align:right;"><span id="eliminarCajaContador">0</span>/250</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="cerrarModalEliminarCaja()">Cancelar</button>
+      <button class="btn danger" id="btnConfirmarEliminarCaja" onclick="confirmarEliminarCajaDiaria()" disabled>Eliminar caja</button>
     </div>
   </div>
 </div>
@@ -1875,7 +1893,8 @@ function renderVentasCaja(){
         <td>${fmtDate(v.fecha)}</td><td>${fmt(v.total)}</td><td>${fmt(kioscoTotal)}</td><td>${fmt(chiringoTotal)}</td>
         <td>${fmt(v.viandasTotal)}<span class="muted"> (${v.viandasCantidad})</span></td>
         <td>${fmt(v.terceirosTotal)}<span class="muted"> (${v.terceirosCantidad})</span></td>
-        <td>${fmt(parrillaTotal)}</td><td><b>${fmt(totalDia)}</b></td></tr>`;
+        <td>${fmt(parrillaTotal)}</td><td><b>${fmt(totalDia)}</b></td>
+        <td class="actions"><button class="btn danger small" title="Eliminar caja" onclick="abrirModalEliminarCaja('${v.id}')">🗑️</button></td></tr>`;
     }).join('');
   }
 
@@ -1898,6 +1917,51 @@ function renderVentasCaja(){
 document.getElementById('filtroCajaCuenta').addEventListener('change', e=>{
   filtroCajaCuentaVal = e.target.value; renderVentasCaja();
 });
+
+/* ---------- Eliminar caja diaria (con motivo obligatorio) ---------- */
+let cajaAEliminarId = null;
+function abrirModalEliminarCaja(id){
+  const v = data.ventasDiarias.find(x=>x.id===id);
+  cajaAEliminarId = id;
+  document.getElementById('eliminarCajaTexto').textContent = v
+    ? `Vas a eliminar la caja del ${fmtDate(v.fecha)}. Esta acción no se puede deshacer.`
+    : 'Esta acción no se puede deshacer.';
+  const motivoEl = document.getElementById('eliminarCajaMotivo');
+  motivoEl.value = '';
+  document.getElementById('eliminarCajaContador').textContent = '0';
+  document.getElementById('btnConfirmarEliminarCaja').disabled = true;
+  openModal('modalEliminarCaja');
+}
+function cerrarModalEliminarCaja(){
+  cajaAEliminarId = null;
+  closeModal('modalEliminarCaja');
+}
+document.getElementById('eliminarCajaMotivo').addEventListener('input', e=>{
+  const len = e.target.value.length;
+  document.getElementById('eliminarCajaContador').textContent = String(len);
+  document.getElementById('btnConfirmarEliminarCaja').disabled = e.target.value.trim().length===0;
+});
+async function confirmarEliminarCajaDiaria(){
+  if(!cajaAEliminarId) return;
+  const motivo = document.getElementById('eliminarCajaMotivo').value.trim();
+  if(!motivo){ alert('Contame el motivo antes de eliminar.'); return; }
+  const v = data.ventasDiarias.find(x=>x.id===cajaAEliminarId);
+  try{
+    const {error: errorLog} = await supa.from('caja_eliminaciones').insert({
+      proyecto_id: currentProyecto.id,
+      fecha_venta: v ? v.fecha : null,
+      motivo,
+      eliminado_por: currentUser ? currentUser.email : null,
+    });
+    if(errorLog) throw errorLog;
+    const {error} = await supa.from('ventas_diarias').delete().eq('id', cajaAEliminarId);
+    if(error) throw error;
+    cerrarModalEliminarCaja();
+    await loadAll();
+  }catch(e){
+    alert('Error eliminando la caja: ' + e.message);
+  }
+}
 
 /* ---------- Totales mensuales ---------- */
 function renderTotales(){
