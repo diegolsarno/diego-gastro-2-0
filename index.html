@@ -138,6 +138,12 @@
   .btn.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--border);}
   .btn.danger{background:transparent; color:var(--red); border:1px solid var(--red);}
   .btn.small{padding:5px 10px; font-size:12px;}
+  .icon-trash-btn{
+    background:none; border:none; padding:4px; cursor:pointer; color:var(--red);
+    display:inline-flex; align-items:center; justify-content:center; border-radius:6px;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .icon-trash-btn:hover{background:rgba(231,76,60,.14); transform:translateY(-1px);}
   .table-scroll{overflow-x:auto;}
   table{width:100%; border-collapse:collapse; font-size:13px;}
   th{
@@ -1864,6 +1870,14 @@ async function savePrecioHistorico(){
 }
 
 /* ---------- Ventas y Caja ---------- */
+const TRASH_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+  <path d="M9.5 3.75h5a1 1 0 0 1 1 1v1.15h-7V4.75a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.3"/>
+  <rect x="4" y="6.1" width="16" height="2" rx="1" fill="currentColor"/>
+  <path d="M5.6 9.4h12.8l-.95 11.1a2 2 0 0 1-2 1.85H8.55a2 2 0 0 1-2-1.85L5.6 9.4z" fill="currentColor"/>
+  <line x1="9.6" y1="12" x2="9.6" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
+  <line x1="12" y1="12" x2="12" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
+  <line x1="14.4" y1="12" x2="14.4" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
+</svg>`;
 let filtroCajaCuentaVal = '';
 function renderVentasCaja(){
   const vd = data.ventasDiarias;
@@ -1894,7 +1908,7 @@ function renderVentasCaja(){
         <td>${fmt(v.viandasTotal)}<span class="muted"> (${v.viandasCantidad})</span></td>
         <td>${fmt(v.terceirosTotal)}<span class="muted"> (${v.terceirosCantidad})</span></td>
         <td>${fmt(parrillaTotal)}</td><td><b>${fmt(totalDia)}</b></td>
-        <td class="actions"><button class="btn danger small" title="Eliminar caja" onclick="abrirModalEliminarCaja('${v.id}')">🗑️</button></td></tr>`;
+        <td class="actions"><button class="icon-trash-btn" title="Eliminar caja" onclick="abrirModalEliminarCaja('${v.id}')">${TRASH_ICON_SVG}</button></td></tr>`;
     }).join('');
   }
 
