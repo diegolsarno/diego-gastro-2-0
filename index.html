@@ -721,13 +721,20 @@
         <h2>Costos laborales <span class="badge-count" id="countCostosLaborales">0</span></h2>
         <div class="filters">
           <select id="filtroCostosLaboralesFamilia"><option value="">Todas las familias</option></select>
+          <select id="filtroCostosLaboralesTipoPersonal">
+            <option value="">Todo el personal</option>
+            <option value="Salon">Salón</option>
+            <option value="Cocina">Cocina</option>
+            <option value="Management">Management</option>
+            <option value="Administracion">Administración</option>
+          </select>
           <button class="btn" id="btnAddCostoLaboral">+ Agregar</button>
         </div>
       </div>
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th></th>
+          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de personal</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th></th>
         </tr></thead>
         <tbody id="tblCostosLaborales"></tbody>
       </table>
@@ -1048,6 +1055,16 @@
         </div>
       </div>
       <div class="field"><label>Familia</label><select id="gastoFamilia"><option value="">— sin familia —</option></select></div>
+    </div>
+    <div class="field" id="fieldGastoTipoPersonal" style="display:none;">
+      <label>Tipo de personal</label>
+      <select id="gastoTipoPersonal">
+        <option value="">— sin especificar —</option>
+        <option value="Salon">Salón</option>
+        <option value="Cocina">Cocina</option>
+        <option value="Management">Management</option>
+        <option value="Administracion">Administración</option>
+      </select>
     </div>
     <div class="row2">
       <div class="field"><label>Tipo de gasto</label><input id="gastoTipoGasto" placeholder="Ej: COMIDAS"></div>
@@ -1445,6 +1462,7 @@ async function loadAll(){
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
       tipoGasto:g.tipo_gasto, tipoComprobante:g.tipo_comprobante, control:g.control,
       nComprobante:g.n_comprobante, total:Number(g.total)||0,
+      tipoPersonal:g.tipo_personal||'',
     }));
     data.ventasDiarias = ventasD.map(v=>({
       id:v.id, fecha:v.fecha,
@@ -2241,6 +2259,9 @@ document.getElementById('filtroGastosFamilia').addEventListener('change', e=>{
 
 /* ---------- Costos laborales ---------- */
 let filtroCostosLaboralesFamiliaVal = '';
+let filtroCostosLaboralesTipoPersonalVal = '';
+const LABELS_TIPO_PERSONAL = {Salon:'Salón', Cocina:'Cocina', Management:'Management', Administracion:'Administración'};
+function labelTipoPersonal(v){ return v ? (LABELS_TIPO_PERSONAL[v]||v) : '-'; }
 function renderCostosLaborales(){
   const baseRows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre));
   const familiasLaborales = data.familias.filter(f=>esFamiliaCostoLaboral(f.nombre));
@@ -2248,8 +2269,12 @@ function renderCostosLaborales(){
   const selF = document.getElementById('filtroCostosLaboralesFamilia');
   selF.innerHTML = '<option value="">Todas las familias</option>' + familiasLaborales.map(f=>`<option value="${escapeHtml(f.nombre)}">${escapeHtml(f.nombre)}</option>`).join('');
   selF.value = filtroCostosLaboralesFamiliaVal;
+  document.getElementById('filtroCostosLaboralesTipoPersonal').value = filtroCostosLaboralesTipoPersonalVal;
 
-  const rows = baseRows.filter(g=> !filtroCostosLaboralesFamiliaVal || g.familiaNombre===filtroCostosLaboralesFamiliaVal);
+  const rows = baseRows.filter(g=>
+    (!filtroCostosLaboralesFamiliaVal || g.familiaNombre===filtroCostosLaboralesFamiliaVal) &&
+    (!filtroCostosLaboralesTipoPersonalVal || g.tipoPersonal===filtroCostosLaboralesTipoPersonalVal)
+  );
   const totalGastos = rows.reduce((s,g)=>s+g.total,0);
   const promedio = rows.length>0 ? totalGastos/rows.length : 0;
   document.getElementById('costosLaboralesCards').innerHTML = [
@@ -2265,7 +2290,7 @@ function renderCostosLaborales(){
   const sorted = rows.slice().sort((a,b)=> (b.fechaFc||b.fechaCarga||'').localeCompare(a.fechaFc||a.fechaCarga||''));
   tbody.innerHTML = sorted.map(g=>`<tr class="${g.total<0?'row-neg':''}">
     <td>${fmtDate(g.fechaFc||g.fechaCarga)}</td><td>${escapeHtml(g.proveedorNombre)}</td>
-    <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
+    <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(labelTipoPersonal(g.tipoPersonal))}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td><b>${fmt(g.total)}</b></td>
     <td class="actions">
@@ -2275,6 +2300,9 @@ function renderCostosLaborales(){
 }
 document.getElementById('filtroCostosLaboralesFamilia').addEventListener('change', e=>{
   filtroCostosLaboralesFamiliaVal = e.target.value; renderCostosLaborales();
+});
+document.getElementById('filtroCostosLaboralesTipoPersonal').addEventListener('change', e=>{
+  filtroCostosLaboralesTipoPersonalVal = e.target.value; renderCostosLaborales();
 });
 
 /* ---------- Totales gastos (gráfico de torta) ---------- */
@@ -2855,6 +2883,8 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   document.getElementById('gastoTipoComprobante').value = '';
   document.getElementById('gastoNComprobante').value = '';
   document.getElementById('gastoTotal').value = '';
+  document.getElementById('fieldGastoTipoPersonal').style.display = 'none';
+  document.getElementById('gastoTipoPersonal').value = '';
   openModal('modalGasto');
 });
 document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
@@ -2870,6 +2900,8 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
   document.getElementById('gastoTipoComprobante').value = '';
   document.getElementById('gastoNComprobante').value = '';
   document.getElementById('gastoTotal').value = '';
+  document.getElementById('fieldGastoTipoPersonal').style.display = 'block';
+  document.getElementById('gastoTipoPersonal').value = '';
   openModal('modalGasto');
 });
 function editGasto(id){
@@ -2886,6 +2918,8 @@ function editGasto(id){
   document.getElementById('gastoTipoComprobante').value = g.tipoComprobante||'';
   document.getElementById('gastoNComprobante').value = g.nComprobante||'';
   document.getElementById('gastoTotal').value = g.total;
+  document.getElementById('fieldGastoTipoPersonal').style.display = gastoModalContext==='laborales' ? 'block' : 'none';
+  document.getElementById('gastoTipoPersonal').value = g.tipoPersonal||'';
   openModal('modalGasto');
 }
 async function saveGasto(){
@@ -2898,7 +2932,8 @@ async function saveGasto(){
   const tipo_comprobante = document.getElementById('gastoTipoComprobante').value.trim();
   const n_comprobante = document.getElementById('gastoNComprobante').value.trim();
   const total = Number(document.getElementById('gastoTotal').value)||0;
-  const payload = {fecha_fc, fecha_carga, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, total};
+  const tipo_personal = gastoModalContext==='laborales' ? (document.getElementById('gastoTipoPersonal').value || null) : null;
+  const payload = {fecha_fc, fecha_carga, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, total, tipo_personal};
   try{
     if(id){
       const {error} = await supa.from('gastos').update(payload).eq('id', id);
