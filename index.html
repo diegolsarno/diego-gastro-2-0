@@ -741,6 +741,24 @@
       </div>
       <div class="empty" id="emptyCostosLaborales" style="display:none;">Todavía no cargaste costos laborales.</div>
     </div>
+
+    <div class="panel" id="panelCostosLaboralesPie">
+      <div class="panel-head">
+        <h2>Distribución del personal por sector</h2>
+      </div>
+      <div id="costosLaboralesPieContent">
+        <div class="pie-layout">
+          <div class="chart-box pie-box"><canvas id="chartCostosLaboralesPersonal"></canvas></div>
+          <div class="table-scroll pie-table">
+            <table>
+              <thead><tr><th>Sector</th><th>Total</th><th>% del personal</th></tr></thead>
+              <tbody id="tblCostosLaboralesPersonal"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="empty" id="emptyCostosLaboralesPie" style="display:none;">Todavía no hay costos laborales con un sector asignado.</div>
+    </div>
   </div>
 
   <!-- ========== ADMINISTRACION: Totales gastos ========== -->
@@ -2285,7 +2303,7 @@ function renderCostosLaborales(){
 
   document.getElementById('countCostosLaborales').textContent = baseRows.length;
   const tbody = document.getElementById('tblCostosLaborales');
-  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyCostosLaborales').style.display='block'; return; }
+  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyCostosLaborales').style.display='block'; renderCostosLaboralesPie(); return; }
   document.getElementById('emptyCostosLaborales').style.display='none';
   const sorted = rows.slice().sort((a,b)=> (b.fechaFc||b.fechaCarga||'').localeCompare(a.fechaFc||a.fechaCarga||''));
   tbody.innerHTML = sorted.map(g=>`<tr class="${g.total<0?'row-neg':''}">
@@ -2297,6 +2315,7 @@ function renderCostosLaborales(){
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
     </td></tr>`).join('');
+  renderCostosLaboralesPie();
 }
 document.getElementById('filtroCostosLaboralesFamilia').addEventListener('change', e=>{
   filtroCostosLaboralesFamiliaVal = e.target.value; renderCostosLaborales();
@@ -2304,6 +2323,68 @@ document.getElementById('filtroCostosLaboralesFamilia').addEventListener('change
 document.getElementById('filtroCostosLaboralesTipoPersonal').addEventListener('change', e=>{
   filtroCostosLaboralesTipoPersonalVal = e.target.value; renderCostosLaborales();
 });
+
+/* Gráfico circular: % del costo laboral que representa cada sector (Salón, Cocina,
+   Management, Administración). Se calcula siempre sobre TODOS los costos laborales
+   cargados (sin aplicar los filtros de familia/tipo de personal de arriba), para que
+   siempre muestre la distribución completa entre los 4 sectores. */
+let chartCostosLaboralesPersonalInstance = null;
+function renderCostosLaboralesPie(){
+  const baseRows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre));
+  const porSector = new Map();
+  baseRows.forEach(g=>{
+    if(!g.tipoPersonal) return;
+    porSector.set(g.tipoPersonal, (porSector.get(g.tipoPersonal)||0) + g.total);
+  });
+  const totalPersonal = [...porSector.values()].reduce((s,v)=>s+v,0);
+  const ordenSectores = ['Salon','Cocina','Management','Administracion'];
+  const entries = ordenSectores.filter(s=>porSector.has(s)).map(s=>[s, porSector.get(s)]);
+
+  const content = document.getElementById('costosLaboralesPieContent');
+  const emptyEl = document.getElementById('emptyCostosLaboralesPie');
+  if(entries.length===0 || totalPersonal<=0){
+    content.style.display='none'; emptyEl.style.display='block';
+    return;
+  }
+  content.style.display='block'; emptyEl.style.display='none';
+
+  const tbody = document.getElementById('tblCostosLaboralesPersonal');
+  tbody.innerHTML = entries.map(([sector,total])=>{
+    const pct = totalPersonal>0 ? total/totalPersonal : null;
+    return `<tr><td>${escapeHtml(labelTipoPersonal(sector))}</td><td><b>${fmt(total)}</b></td><td class="muted">${pct===null?'-':fmtPct(pct)}</td></tr>`;
+  }).join('');
+
+  const paletteSector = {Salon:'#4f8cff', Cocina:'#e67e22', Management:'#9b59b6', Administracion:'#2ecc71'};
+  const pieBox = document.getElementById('chartCostosLaboralesPersonal').closest('.pie-box');
+  if(typeof Chart==='undefined'){
+    pieBox.style.display='none';
+  }else{
+    pieBox.style.display='flex';
+    const ctx = document.getElementById('chartCostosLaboralesPersonal').getContext('2d');
+    if(chartCostosLaboralesPersonalInstance) chartCostosLaboralesPersonalInstance.destroy();
+    chartCostosLaboralesPersonalInstance = new Chart(ctx, {
+      type:'pie',
+      data:{
+        labels: entries.map(([sector])=>labelTipoPersonal(sector)),
+        datasets:[{
+          data: entries.map(([,total])=>total),
+          backgroundColor: entries.map(([sector])=>paletteSector[sector]||'#999'),
+          borderColor:themeColor('--panel'), borderWidth:2,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:themeColor('--text'), boxWidth:12, font:{size:11} } },
+          tooltip:{ callbacks:{ label: ctx => {
+            const pct = totalPersonal>0 ? ctx.parsed/totalPersonal*100 : 0;
+            return `${ctx.label}: ${fmt(ctx.parsed)} (${pct.toFixed(1)}%)`;
+          } } }
+        }
+      }
+    });
+  }
+}
 
 /* ---------- Totales gastos (gráfico de torta) ---------- */
 let filtroTotalesGastosMesVal = '';
