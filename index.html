@@ -1061,7 +1061,7 @@
     <h3 id="modalGastoTitle">Nuevo gasto</h3>
     <input type="hidden" id="gastoId">
     <div class="row2">
-      <div class="field"><label>Fecha (factura)</label><input id="gastoFechaFc" type="date"></div>
+      <div class="field"><label id="labelGastoFechaFc">Fecha (factura)</label><input id="gastoFechaFc" type="date"></div>
       <div class="field"><label>Fecha (carga)</label><input id="gastoFechaCarga" type="date"></div>
     </div>
     <div class="row2">
@@ -2954,6 +2954,7 @@ document.getElementById('gastoProveedor').addEventListener('change', aplicarDefa
 document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   gastoModalContext = 'gastos';
   document.getElementById('modalGastoTitle').textContent = 'Nuevo gasto';
+  document.getElementById('labelGastoFechaFc').textContent = 'Fecha (factura)';
   document.getElementById('gastoId').value = '';
   document.getElementById('gastoFechaFc').value = '';
   document.getElementById('gastoFechaCarga').value = '';
@@ -2971,6 +2972,7 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
 document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
   gastoModalContext = 'laborales';
   document.getElementById('modalGastoTitle').textContent = 'Nuevo costo laboral';
+  document.getElementById('labelGastoFechaFc').textContent = 'Fecha';
   document.getElementById('gastoId').value = '';
   document.getElementById('gastoFechaFc').value = '';
   document.getElementById('gastoFechaCarga').value = '';
@@ -2989,6 +2991,7 @@ function editGasto(id){
   const g = data.gastos.find(x=>x.id===id);
   gastoModalContext = esFamiliaCostoLaboral(g.familiaNombre) ? 'laborales' : 'gastos';
   document.getElementById('modalGastoTitle').textContent = gastoModalContext==='laborales' ? 'Editar costo laboral' : 'Editar gasto';
+  document.getElementById('labelGastoFechaFc').textContent = gastoModalContext==='laborales' ? 'Fecha' : 'Fecha (factura)';
   document.getElementById('gastoId').value = g.id;
   document.getElementById('gastoFechaFc').value = g.fechaFc||'';
   document.getElementById('gastoFechaCarga').value = g.fechaCarga||'';
