@@ -308,6 +308,17 @@
   .eerr-cell-neg{color:var(--red);}
   .eerr-pct{display:block; font-size:10px; font-weight:inherit; color:var(--muted); margin-top:1px;}
 
+  .cal-pagos-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--border); padding:1px; border-radius:8px; overflow:hidden;}
+  .cal-pagos-daylabel{background:var(--panel2); color:var(--muted); font-size:11px; font-weight:700; text-align:center; padding:6px 0; text-transform:uppercase;}
+  .cal-pagos-day{background:var(--panel); min-height:92px; padding:6px; font-size:11.5px; vertical-align:top;}
+  .cal-pagos-day.other-month{background:var(--bg); opacity:.45;}
+  .cal-pagos-daynum{font-weight:700; font-size:12px; margin-bottom:4px; color:var(--muted);}
+  .cal-pagos-item{background:var(--panel2); border-radius:5px; padding:3px 6px; margin-bottom:3px; font-size:11px; line-height:1.35;}
+  .cal-pagos-item b{display:block; font-size:11px;}
+  @media (max-width:720px){
+    .cal-pagos-day{min-height:60px; font-size:10px; padding:4px;}
+    .cal-pagos-item{font-size:9.5px; padding:2px 4px;}
+  }
   #splashScreen{
     position:fixed; inset:0; background:var(--bg); z-index:300;
     display:flex; align-items:center; justify-content:center;
@@ -502,7 +513,7 @@
 <nav class="subnav" id="subnav-administracion">
   <button data-view="ventas" class="active">Ventas y Caja</button>
   <button data-view="totales">Total venta</button>
-  <button data-view="gastos">Gastos</button>
+  <button data-view="gastos">Gastos</button> <button data-view="calendariopagos">Calendario de pagos</button>
   <button data-view="costoslaborales">Costos laborales</button>
   <button data-view="totalesgastos">Totales gastos</button>
   <button data-view="eerr">EERR</button>
@@ -713,7 +724,20 @@
     </div>
   </div>
 
-  <!-- ========== ADMINISTRACION: Costos laborales ========== -->
+  <!-- ========== ADMINISTRACION: Calendario de pagos ========== -->
+      <div class="view" id="view-calendariopagos">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 id="calPagosTitulo">Calendario de pagos</h2>
+            <div class="filters">
+              <button class="btn secondary small" onclick="calPagosMesAnterior()">&lsaquo; Mes anterior</button>
+              <button class="btn secondary small" onclick="calPagosMesSiguiente()">Mes siguiente &rsaquo;</button>
+            </div>
+          </div>
+          <div id="calPagosGrid" class="cal-pagos-grid"></div>
+        </div>
+      </div>
+      <!-- ========== ADMINISTRACION: Costos laborales ========== -->
   <div class="view" id="view-costoslaborales">
     <div class="cards" id="costosLaboralesCards"></div>
     <div class="panel">
@@ -1609,7 +1633,57 @@ function showView(view){
   if(el) el.classList.add('active');
 }
 
-/* ---------- Render ---------- */
+/* ---------- Calendario de pagos ---------- */
+    let calPagosYear = new Date().getFullYear();
+    let calPagosMonth = new Date().getMonth();
+    function calPagosMesAnterior(){
+      calPagosMonth--;
+      if(calPagosMonth<0){ calPagosMonth=11; calPagosYear--; }
+      renderCalendarioPagos();
+    }
+    function calPagosMesSiguiente(){
+      calPagosMonth++;
+      if(calPagosMonth>11){ calPagosMonth=0; calPagosYear++; }
+      renderCalendarioPagos();
+    }
+    function renderCalendarioPagos(){
+      const grid = document.getElementById('calPagosGrid');
+      if(!grid) return;
+      const nombresMes = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const titulo = document.getElementById('calPagosTitulo');
+      if(titulo) titulo.textContent = 'Calendario de pagos — ' + nombresMes[calPagosMonth] + ' ' + calPagosYear;
+      const porDia = {};
+      (data.gastos||[]).forEach(g=>{
+        if(!g.fechaPago) return;
+        const d = new Date(g.fechaPago+'T00:00:00');
+        if(d.getFullYear()===calPagosYear && d.getMonth()===calPagosMonth){
+          const key = d.getDate();
+          if(!porDia[key]) porDia[key] = [];
+          porDia[key].push(g);
+        }
+      });
+      const primerDiaSemana = new Date(calPagosYear, calPagosMonth, 1).getDay();
+      const diasEnMes = new Date(calPagosYear, calPagosMonth+1, 0).getDate();
+      const diasMesAnterior = new Date(calPagosYear, calPagosMonth, 0).getDate();
+      let html = '';
+      ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].forEach(d=>{ html += '<div class="cal-pagos-daylabel">'+d+'</div>'; });
+      for(let i=0;i<primerDiaSemana;i++){
+        const num = diasMesAnterior - primerDiaSemana + 1 + i;
+        html += '<div class="cal-pagos-day other-month"><div class="cal-pagos-daynum">'+num+'</div></div>';
+      }
+      for(let dia=1; dia<=diasEnMes; dia++){
+        const items = porDia[dia] || [];
+        const itemsHtml = items.map(g=>'<div class="cal-pagos-item"><b>'+escapeHtml(g.proveedorNombre||'-')+'</b>'+fmt(g.total)+'</div>').join('');
+        html += '<div class="cal-pagos-day"><div class="cal-pagos-daynum">'+dia+'</div>'+itemsHtml+'</div>';
+      }
+      const totalCells = primerDiaSemana + diasEnMes;
+      const remaining = (7 - (totalCells % 7)) % 7;
+      for(let i=1;i<=remaining;i++){
+        html += '<div class="cal-pagos-day other-month"><div class="cal-pagos-daynum">'+i+'</div></div>';
+      }
+      grid.innerHTML = html;
+    }
+    /* ---------- Render ---------- */
 function renderAll(){
   renderResumen(); renderInsumos(); renderRecetas(); renderMenu(); fillRecetaSelect();
   fillFamiliaDatalist();
@@ -1618,6 +1692,7 @@ function renderAll(){
   renderVentasCaja();
   renderTotales();
   renderGastos();
+  renderCalendarioPagos();
   renderCostosLaborales();
   renderTotalesGastos();
   renderEerr();
