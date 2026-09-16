@@ -1064,6 +1064,7 @@
       <div class="field"><label id="labelGastoFechaFc">Fecha (factura)</label><input id="gastoFechaFc" type="date"></div>
       <div class="field"><label>Fecha (carga)</label><input id="gastoFechaCarga" type="date"></div>
     </div>
+        <div class="field"><label>Fecha de pago</label><input id="gastoFechaPago" type="date"></div>
     <div class="row2">
       <div class="field">
         <label>Proveedor</label>
@@ -1474,7 +1475,7 @@ async function loadAll(){
       proveedorNombre: (p.proveedores && p.proveedores.nombre) ? p.proveedores.nombre : '-',
     }));
     data.gastos = gastosD.map(g=>({
-      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga,
+      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago,
       proveedorId:g.proveedor_id, familiaId:g.familia_id,
       proveedorNombre:(g.proveedores && g.proveedores.nombre) ? g.proveedores.nombre : '-',
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
@@ -2957,7 +2958,7 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   document.getElementById('labelGastoFechaFc').textContent = 'Fecha (factura)';
   document.getElementById('gastoId').value = '';
   document.getElementById('gastoFechaFc').value = '';
-  document.getElementById('gastoFechaCarga').value = '';
+  document.getElementById('gastoFechaCarga').value = ''; document.getElementById('gastoFechaPago').value = '';
   fillGastoSelects();
   document.getElementById('gastoProveedor').value = '';
   document.getElementById('gastoFamilia').value = '';
@@ -2975,7 +2976,7 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
   document.getElementById('labelGastoFechaFc').textContent = 'Fecha';
   document.getElementById('gastoId').value = '';
   document.getElementById('gastoFechaFc').value = '';
-  document.getElementById('gastoFechaCarga').value = '';
+  document.getElementById('gastoFechaCarga').value = ''; document.getElementById('gastoFechaPago').value = '';
   fillGastoSelects();
   document.getElementById('gastoProveedor').value = '';
   document.getElementById('gastoFamilia').value = '';
@@ -2994,7 +2995,7 @@ function editGasto(id){
   document.getElementById('labelGastoFechaFc').textContent = gastoModalContext==='laborales' ? 'Fecha' : 'Fecha (factura)';
   document.getElementById('gastoId').value = g.id;
   document.getElementById('gastoFechaFc').value = g.fechaFc||'';
-  document.getElementById('gastoFechaCarga').value = g.fechaCarga||'';
+  document.getElementById('gastoFechaCarga').value = g.fechaCarga||''; document.getElementById('gastoFechaPago').value = g.fechaPago||'';
   fillGastoSelects();
   document.getElementById('gastoProveedor').value = g.proveedorId||'';
   document.getElementById('gastoFamilia').value = g.familiaId||'';
@@ -3009,7 +3010,7 @@ function editGasto(id){
 async function saveGasto(){
   const id = document.getElementById('gastoId').value;
   const fecha_fc = document.getElementById('gastoFechaFc').value || null;
-  const fecha_carga = document.getElementById('gastoFechaCarga').value || null;
+  const fecha_carga = document.getElementById('gastoFechaCarga').value || null; const fecha_pago = document.getElementById('gastoFechaPago').value || null;
   const proveedor_id = document.getElementById('gastoProveedor').value || null;
   const familia_id = document.getElementById('gastoFamilia').value || null;
   const tipo_gasto = document.getElementById('gastoTipoGasto').value.trim();
@@ -3017,7 +3018,7 @@ async function saveGasto(){
   const n_comprobante = document.getElementById('gastoNComprobante').value.trim();
   const total = Number(document.getElementById('gastoTotal').value)||0;
   const tipo_personal = gastoModalContext==='laborales' ? (document.getElementById('gastoTipoPersonal').value || null) : null;
-  const payload = {fecha_fc, fecha_carga, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, total, tipo_personal};
+  const payload = {fecha_fc, fecha_carga, fecha_pago, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, total, tipo_personal};
   try{
     if(id){
       const {error} = await supa.from('gastos').update(payload).eq('id', id);
