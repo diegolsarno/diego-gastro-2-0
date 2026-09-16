@@ -319,6 +319,12 @@
     .cal-pagos-day{min-height:60px; font-size:10px; padding:4px;}
     .cal-pagos-item{font-size:9.5px; padding:2px 4px;}
   }
+  .btn-pago{width:26px; height:26px; border-radius:50%; border:none; color:#fff; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1;}
+  .btn-pago.pago-pend{background:var(--red);}
+  .btn-pago.pago-ok{background:var(--green);}
+  .pago-chip-menu{position:absolute; z-index:500; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:6px; box-shadow:0 8px 20px rgba(0,0,0,.3); display:flex; flex-direction:column; gap:4px; min-width:130px;}
+  .pago-chip-menu button{background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:6px; font-size:12.5px; text-align:left; cursor:pointer;}
+  .pago-chip-menu button:hover{border-color:var(--accent); color:var(--accent);}
   #splashScreen{
     position:fixed; inset:0; background:var(--bg); z-index:300;
     display:flex; align-items:center; justify-content:center;
@@ -1499,7 +1505,7 @@ async function loadAll(){
       proveedorNombre: (p.proveedores && p.proveedores.nombre) ? p.proveedores.nombre : '-',
     }));
     data.gastos = gastosD.map(g=>({
-      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago,
+      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago,
       proveedorId:g.proveedor_id, familiaId:g.familia_id,
       proveedorNombre:(g.proveedores && g.proveedores.nombre) ? g.proveedores.nombre : '-',
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
@@ -2343,6 +2349,7 @@ function renderGastos(){
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td><b>${fmt(g.total)}</b></td>
     <td class="actions">
+      <button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button>
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
     </td></tr>`).join('');
@@ -3063,7 +3070,33 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
   document.getElementById('gastoTipoPersonal').value = '';
   openModal('modalGasto');
 });
-function editGasto(id){
+/* ---------- Forma de pago (chip) ---------- */
+    function togglePagoChip(ev, id){
+      ev.stopPropagation();
+      document.querySelectorAll('.pago-chip-menu').forEach(el=>el.remove());
+      const metodos = ['Efectivo','Transferencia','E-check','MP'];
+      const menu = document.createElement('div');
+      menu.className = 'pago-chip-menu';
+      menu.innerHTML = metodos.map(m=>'<button type="button" onclick="setFormaPago(\''+id+'\',\''+m+'\')">'+m+'</button>').join('');
+      document.body.appendChild(menu);
+      const rect = ev.currentTarget.getBoundingClientRect();
+      menu.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+      menu.style.left = (window.scrollX + rect.left) + 'px';
+      setTimeout(()=>{
+        document.addEventListener('click', function closeChip(e){
+          if(!menu.contains(e.target)){ menu.remove(); document.removeEventListener('click', closeChip); }
+        });
+      },0);
+    }
+    async function setFormaPago(id, metodo){
+      document.querySelectorAll('.pago-chip-menu').forEach(el=>el.remove());
+      try{
+        const {error} = await supa.from('gastos').update({forma_pago: metodo}).eq('id', id);
+        if(error) throw error;
+        await loadAll();
+      }catch(e){ alert('Error guardando forma de pago: ' + e.message); }
+    }
+    function editGasto(id){
   const g = data.gastos.find(x=>x.id===id);
   gastoModalContext = esFamiliaCostoLaboral(g.familiaNombre) ? 'laborales' : 'gastos';
   document.getElementById('modalGastoTitle').textContent = gastoModalContext==='laborales' ? 'Editar costo laboral' : 'Editar gasto';
