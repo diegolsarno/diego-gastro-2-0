@@ -477,7 +477,7 @@
   <div class="user-chip">
     <span id="userEmail"></span>
     <button class="btn secondary small app-hidden" id="btnCambiarProyecto" onclick="volverAlPicker()">🔀 Cambiar establecimiento</button>
-    <button class="btn secondary small" id="btnThemeToggle" onclick="toggleTheme()">🌙 Modo noche</button>
+    <button class="btn secondary small" id="btnThemeToggle" onclick="toggleTheme()">🌙</button>
     <button class="btn secondary small" onclick="doLogout()">Cerrar sesión</button>
   </div>
 </header>
@@ -1248,7 +1248,7 @@ function themeColor(varName){
 function updateThemeButton(){
   const isLight = document.documentElement.getAttribute('data-theme')==='light';
   const btn = document.getElementById('btnThemeToggle');
-  if(btn) btn.textContent = isLight ? '☀️ Modo día' : '🌙 Modo noche';
+  if(btn) btn.textContent = isLight ? '☀️' : '🌙';
 }
 function toggleTheme(){
   const current = document.documentElement.getAttribute('data-theme');
