@@ -1433,7 +1433,7 @@ async function entrarAlProyecto(){
   document.getElementById('pickerScreen').classList.add('app-hidden');
   document.getElementById('appRoot').classList.remove('app-hidden');
   const headerEl = document.getElementById('proyectoNombreHeader');
-  headerEl.innerHTML = (currentProyecto.logoUrl ? `<img src="${escapeHtml(currentProyecto.logoUrl)}" class="proyecto-logo-header" alt="">` : '') + 'Costeo ' + escapeHtml(currentProyecto.nombre);
+  headerEl.innerHTML = (currentProyecto.logoUrl ? `<img src="${escapeHtml(currentProyecto.logoUrl)}" class="proyecto-logo-header" alt="">` : '') + escapeHtml(currentProyecto.nombre);
   const btnCambiar = document.getElementById('btnCambiarProyecto');
   const navUsuarios = document.getElementById('navUsuarios');
   if(currentProfile && currentProfile.is_admin){
