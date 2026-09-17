@@ -641,7 +641,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Ventas diarias <span class="badge-count" id="countVentas">0</span></h2>
-        <button class="btn" id="btnAddCajaDiaria">+ Agregar caja diaria</button>
+        <div class="filters"><select id="filtroVentasMes"></select> <button class="btn" id="btnAddCajaDiaria">+ Agregar caja diaria</button> </div>
       </div>
       <div class="table-scroll">
       <table>
@@ -2085,15 +2085,15 @@ const TRASH_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" xmlns="h
   <line x1="12" y1="12" x2="12" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
   <line x1="14.4" y1="12" x2="14.4" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
 </svg>`;
-let filtroCajaCuentaVal = '';
+let filtroCajaCuentaVal = ''; let filtroVentasMesVal = '';
 function renderVentasCaja(){
   const vd = data.ventasDiarias;
-  const totalVentas = vd.reduce((s,v)=> s + v.total + v.kioscoEfectivo+v.kioscoBco+v.kioscoMp + (v.chiringoEfectivo||0)+(v.chiringoMp||0) + v.viandasTotal + v.terceirosTotal + v.parrillaEfectivo + v.parrillaMp, 0);
-  const promedioDiario = vd.length>0 ? totalVentas/vd.length : 0;
-  const totalViandas = vd.reduce((s,v)=>s+v.viandasTotal,0);
-  const total3ros = vd.reduce((s,v)=>s+v.terceirosTotal,0);
+  const mesesDisponibles = Array.from(new Set(vd.map(v=>monthKey(v.fecha)))).filter(Boolean).sort().reverse(); if(!filtroVentasMesVal || !mesesDisponibles.includes(filtroVentasMesVal)){ filtroVentasMesVal = mesesDisponibles[0] || ''; } const selMes = document.getElementById('filtroVentasMes'); selMes.innerHTML = mesesDisponibles.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join(''); selMes.value = filtroVentasMesVal; const vdMes = vd.filter(v=> monthKey(v.fecha)===filtroVentasMesVal); const totalVentas = vdMes.reduce((s,v)=> s + v.total + v.kioscoEfectivo+v.kioscoBco+v.kioscoMp + (v.chiringoEfectivo||0)+(v.chiringoMp||0) + v.viandasTotal + v.terceirosTotal + v.parrillaEfectivo + v.parrillaMp, 0);
+  const promedioDiario = vdMes.length>0 ? totalVentas/vdMes.length : 0;
+  const totalViandas = vdMes.reduce((s,v)=>s+v.viandasTotal,0);
+  const total3ros = vdMes.reduce((s,v)=>s+v.terceirosTotal,0);
   document.getElementById('ventasCards').innerHTML = [
-    {num:fmt(totalVentas), label:'Total facturado (2026)'},
+    {num:fmt(totalVentas), label:`Total facturado (${fmtMes(filtroVentasMesVal+'-01')})`},
     {num:fmt(promedioDiario), label:'Promedio diario'},
     {num:fmt(totalViandas), label:'Total viandas'},
     {num:fmt(total3ros), label:'Total 3ros tiempos'},
@@ -2137,7 +2137,7 @@ function renderVentasCaja(){
 }
 document.getElementById('filtroCajaCuenta').addEventListener('change', e=>{
   filtroCajaCuentaVal = e.target.value; renderVentasCaja();
-});
+}); document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
 
 /* ---------- Eliminar caja diaria (con motivo obligatorio) ---------- */
 let cajaAEliminarId = null;
