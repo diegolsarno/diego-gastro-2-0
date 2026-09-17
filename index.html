@@ -2088,12 +2088,12 @@ const TRASH_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" xmlns="h
 let filtroCajaCuentaVal = ''; let filtroVentasMesVal = '';
 function renderVentasCaja(){
   const vd = data.ventasDiarias;
-  const mesesDisponibles = Array.from(new Set(vd.map(v=>monthKey(v.fecha)))).filter(Boolean).sort().reverse(); if(!filtroVentasMesVal || !mesesDisponibles.includes(filtroVentasMesVal)){ filtroVentasMesVal = mesesDisponibles[0] || ''; } const selMes = document.getElementById('filtroVentasMes'); selMes.innerHTML = mesesDisponibles.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join(''); selMes.value = filtroVentasMesVal; const vdMes = vd.filter(v=> monthKey(v.fecha)===filtroVentasMesVal); const totalVentas = vdMes.reduce((s,v)=> s + v.total + v.kioscoEfectivo+v.kioscoBco+v.kioscoMp + (v.chiringoEfectivo||0)+(v.chiringoMp||0) + v.viandasTotal + v.terceirosTotal + v.parrillaEfectivo + v.parrillaMp, 0);
+  const mesesDisponibles = Array.from(new Set(vd.map(v=>monthKey(v.fecha)))).filter(Boolean).sort().reverse(); if(!filtroVentasMesVal || !mesesDisponibles.includes(filtroVentasMesVal)){ filtroVentasMesVal = mesesDisponibles[0] || ''; } const selMes = document.getElementById('filtroVentasMes'); selMes.innerHTML = '<option value="__ANIO__">Acumulado año</option>' + mesesDisponibles.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join(''); selMes.value = filtroVentasMesVal; const vdMes = filtroVentasMesVal==='__ANIO__' ? vd : vd.filter(v=> monthKey(v.fecha)===filtroVentasMesVal); const totalVentas = vdMes.reduce((s,v)=> s + v.total + v.kioscoEfectivo+v.kioscoBco+v.kioscoMp + (v.chiringoEfectivo||0)+(v.chiringoMp||0) + v.viandasTotal + v.terceirosTotal + v.parrillaEfectivo + v.parrillaMp, 0);
   const promedioDiario = vdMes.length>0 ? totalVentas/vdMes.length : 0;
   const totalViandas = vdMes.reduce((s,v)=>s+v.viandasTotal,0);
   const total3ros = vdMes.reduce((s,v)=>s+v.terceirosTotal,0);
   document.getElementById('ventasCards').innerHTML = [
-    {num:fmt(totalVentas), label:`Total facturado (${fmtMes(filtroVentasMesVal+'-01')})`},
+    {num:fmt(totalVentas), label:`Total facturado (${filtroVentasMesVal==='__ANIO__' ? 'año' : fmtMes(filtroVentasMesVal+'-01')})`},
     {num:fmt(promedioDiario), label:'Promedio diario'},
     {num:fmt(totalViandas), label:'Total viandas'},
     {num:fmt(total3ros), label:'Total 3ros tiempos'},
