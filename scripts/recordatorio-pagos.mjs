@@ -3,21 +3,24 @@ import nodemailer from 'nodemailer';
 
 const SUPABASE_URL = 'https://idcndgiyylskkzkxlbnf.supabase.co';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+const BREVO_USER = process.env.BREVO_USER;
+const BREVO_SMTP_KEY = process.env.BREVO_SMTP_KEY;
+const FROM_EMAIL = process.env.FROM_EMAIL;
 
-if (!SERVICE_ROLE_KEY || !GMAIL_USER || !GMAIL_APP_PASSWORD) {
-  console.error('Faltan variables de entorno SUPABASE_SERVICE_ROLE_KEY, GMAIL_USER o GMAIL_APP_PASSWORD');
+if (!SERVICE_ROLE_KEY || !BREVO_USER || !BREVO_SMTP_KEY || !FROM_EMAIL) {
+  console.error('Faltan variables de entorno SUPABASE_SERVICE_ROLE_KEY, BREVO_USER, BREVO_SMTP_KEY o FROM_EMAIL');
   process.exit(1);
 }
 
 const supa = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp-relay.brevo.com',
+  port: 587,
+  secure: false,
   auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_APP_PASSWORD
+    user: BREVO_USER,
+    pass: BREVO_SMTP_KEY
   }
 });
 
@@ -82,7 +85,7 @@ async function main() {
 
     try {
       await transporter.sendMail({
-        from: '"Brocoli PMS" <' + GMAIL_USER + '>',
+        from: '"Brocoli PMS" <' + FROM_EMAIL + '>',
         to: destinatarios.join(', '),
         subject: 'Recordatorio de pagos de hoy - ' + nombreProyecto,
         text: texto,
