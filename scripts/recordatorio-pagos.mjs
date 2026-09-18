@@ -1,16 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 const SUPABASE_URL = 'https://idcndgiyylskkzkxlbnf.supabase.co';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Brocoli PMS <onboarding@resend.dev>';
+const GMAIL_USER = process.env.GMAIL_USER;
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
-if (!SERVICE_ROLE_KEY || !RESEND_API_KEY) {
-  console.error('Faltan variables de entorno SUPABASE_SERVICE_ROLE_KEY o RESEND_API_KEY');
+if (!SERVICE_ROLE_KEY || !GMAIL_USER || !GMAIL_APP_PASSWORD) {
+  console.error('Faltan variables de entorno SUPABASE_SERVICE_ROLE_KEY, GMAIL_USER o GMAIL_APP_PASSWORD');
   process.exit(1);
 }
 
 const supa = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: GMAIL_USER,
+    pass: GMAIL_APP_PASSWORD
+  }
+});
 
 function hoyArgentina() {
   const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -71,26 +80,17 @@ async function main() {
       return '<li>' + proveedor + ': <b>' + fmtMoneda(g.total) + '</b></li>';
     }).join('') + '</ul><p>Muchas gracias!</p><p>Brocoli PMS</p>';
 
-    const resp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + RESEND_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: destinatarios,
+    try {
+      await transporter.sendMail({
+        from: '"Brocoli PMS" <' + GMAIL_USER + '>',
+        to: destinatarios.join(', '),
         subject: 'Recordatorio de pagos de hoy - ' + nombreProyecto,
         text: texto,
         html
-      })
-    });
-
-    const respBody = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      console.error('Error enviando mail para ' + nombreProyecto + ':', respBody);
-    } else {
+      });
       console.log('Mail enviado para ' + nombreProyecto + ' a:', destinatarios.join(', '));
+    } catch (e) {
+      console.error('Error enviando mail para ' + nombreProyecto + ':', e.message);
     }
   }
 }
