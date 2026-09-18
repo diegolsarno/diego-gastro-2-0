@@ -190,7 +190,7 @@
   .field input, .field select{
     width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
     padding:9px 10px; border-radius:7px; font-size:13.5px;
-  }
+  } .field input.campo-error, .field select.campo-error{border-color:var(--red);}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .row3{display:grid; grid-template-columns:2fr 1fr auto; gap:8px; align-items:end;}
   .row3even{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
@@ -3126,7 +3126,7 @@ async function saveGasto(){
   const tipo_gasto = document.getElementById('gastoTipoGasto').value.trim();
   const tipo_comprobante = document.getElementById('gastoTipoComprobante').value.trim();
   const n_comprobante = document.getElementById('gastoNComprobante').value.trim();
-  const total = Number(document.getElementById('gastoTotal').value)||0;
+  const total = Number(document.getElementById('gastoTotal').value)||0; const camposObligatoriosGasto = ['gastoProveedor','gastoFamilia','gastoTipoGasto','gastoTipoComprobante','gastoNComprobante','gastoTotal']; let faltantesGasto = []; camposObligatoriosGasto.forEach(cid=>{ const el = document.getElementById(cid); const vacio = !el.value || !el.value.trim(); el.classList.toggle('campo-error', vacio); if(vacio) faltantesGasto.push(cid); }); if(faltantesGasto.length>0){ alert('Completá todos los campos obligatorios antes de guardar.'); return; }
   const tipo_personal = gastoModalContext==='laborales' ? (document.getElementById('gastoTipoPersonal').value || null) : null;
   const payload = {fecha_fc, fecha_carga, fecha_pago, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, total, tipo_personal};
   try{
