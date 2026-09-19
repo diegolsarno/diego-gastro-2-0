@@ -80,10 +80,12 @@ async function main() {
 
     const texto = 'Buenos dias!\n\nBrocoli te recuerda los pagos que tienen vencimiento hoy:\n\n' + filas + '\n\nMuchas gracias!\n\nBrocoli PMS';
 
+    const logoUrl = 'https://raw.githubusercontent.com/diegolsarno/diego-gastro-2-0/main/brocoli-logo-email-p.png';
+
     const html = '<p>Buenos dias!</p><p>Brocoli te recuerda los pagos que tienen vencimiento hoy:</p><ul>' + lista.map(g => {
       const proveedor = (g.proveedores && g.proveedores.nombre) || g.tipo_gasto || 'Sin proveedor';
       return '<li>' + proveedor + ': <b>' + fmtMoneda(g.total) + '</b></li>';
-    }).join('') + '</ul><p>Muchas gracias!</p><p>Brocoli PMS</p>';
+    }).join('') + '</ul><p>Muchas gracias!</p><p>Brocoli PMS</p><p><img src="' + logoUrl + '" alt="Brocoli PMS" width="160" style="display:block;margin-top:8px;border:0;"></p>';
 
     try {
       await transporter.sendMail({
