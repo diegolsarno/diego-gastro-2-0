@@ -679,6 +679,28 @@
 
       <!-- ========== ADMINISTRACION: Egresos ========== -->
       <div class="view" id="view-egresos">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Egresos <span class="badge-count" id="countEgresos">0</span></h2>
+            <div class="filters">
+              <select id="filtroEgresosCuenta">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Banco">Banco</option>
+                <option value="MP">Mercado Pago</option>
+              </select>
+              <span class="hint" style="margin:0;">Saldo inicial</span>
+              <input id="egresosSaldoInicial" type="number" step="0.01" style="width:120px; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:7px; font-size:12.5px;">
+              <button class="btn secondary small" id="btnGuardarSaldoEgresos">Guardar saldo</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Fecha</th><th>Proveedor</th><th>Monto</th><th>Saldo</th></tr></thead>
+              <tbody id="tblEgresos"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="emptyEgresos" style="display:none;">Todavía no hay egresos para esta forma de pago.</div>
+        </div>
       </div>
 
   <!-- ========== ADMINISTRACION: Totales ========== -->
@@ -1163,7 +1185,9 @@ let data = {
   insumos:[], recetas:[], menu:[],
   proveedores:[], familias:[], precioHistorico:[],
   gastos:[], ventasDiarias:[], cajaMovimientos:[],
+  egresosSaldosIniciales:{},
 };
+let filtroEgresosCuenta = 'Efectivo';
 
 /* ---------- Multi-proyecto (establecimientos) ---------- */
 let currentUser = null;      // { id, email }
@@ -1493,13 +1517,14 @@ async function loadAll(){
 
     /* --- Nuevas tablas (Administracion / Parametros). Se cargan de forma tolerante
        a errores para no romper el resto de la app si alguna tabla todavia no existe. --- */
-    const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD] = await Promise.all([
+    const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD, egresosSaldosD] = await Promise.all([
       safeQuery(supa.from('proveedores').select('*').order('nombre'), 'proveedores'),
       safeQuery(supa.from('familias').select('*').order('nombre'), 'familias'),
       safeQuery(supa.from('precio_historico').select('*, insumos(nombre), proveedores(nombre)').eq('proyecto_id', pid).order('mes'), 'precio_historico'),
       safeQuery(supa.from('gastos').select('*, proveedores(nombre), familias(nombre)').eq('proyecto_id', pid).order('fecha_fc', {ascending:false}), 'gastos'),
       safeQuery(supa.from('ventas_diarias').select('*').eq('proyecto_id', pid).order('fecha'), 'ventas_diarias'),
       safeQuery(supa.from('caja_movimientos').select('*').eq('proyecto_id', pid).order('cuenta').order('fecha'), 'caja_movimientos'),
+      safeQuery(supa.from('egresos_saldos_iniciales').select('*').eq('proyecto_id', pid), 'egresos_saldos_iniciales'),
     ]);
 
     data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||''}));
@@ -1511,7 +1536,7 @@ async function loadAll(){
       proveedorNombre: (p.proveedores && p.proveedores.nombre) ? p.proveedores.nombre : '-',
     }));
     data.gastos = gastosD.map(g=>({
-      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago,
+      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago, formaPagoFecha:g.forma_pago_fecha,
       proveedorId:g.proveedor_id, familiaId:g.familia_id,
       proveedorNombre:(g.proveedores && g.proveedores.nombre) ? g.proveedores.nombre : '-',
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
@@ -1536,6 +1561,8 @@ async function loadAll(){
       movIntNegativo:Number(c.mov_int_negativo)||0, comisiones:Number(c.comisiones)||0,
       impuestos:Number(c.impuestos)||0, retiros:Number(c.retiros)||0, saldo:Number(c.saldo)||0,
     }));
+    data.egresosSaldosIniciales = {};
+    egresosSaldosD.forEach(e=>{ data.egresosSaldosIniciales[e.cuenta] = Number(e.saldo)||0; });
 
     renderAll();
   }catch(e){
@@ -1704,6 +1731,7 @@ function renderAll(){
   renderVentasCaja();
   renderTotales();
   renderGastos();
+  renderEgresos();
   renderCalendarioPagos();
   renderCostosLaborales();
   renderTotalesGastos();
@@ -3097,11 +3125,61 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
     async function setFormaPago(id, metodo){
       document.querySelectorAll('.pago-chip-menu').forEach(el=>el.remove());
       try{
-        const {error} = await supa.from('gastos').update({forma_pago: metodo}).eq('id', id);
+        const hoy = new Date().toISOString().slice(0,10);
+        const payload = metodo ? {forma_pago: metodo, forma_pago_fecha: hoy} : {forma_pago: null, forma_pago_fecha: null};
+        const {error} = await supa.from('gastos').update(payload).eq('id', id);
         if(error) throw error;
         await loadAll();
       }catch(e){ alert('Error guardando forma de pago: ' + e.message); }
     }
+    /* ---------- Egresos (derivado en vivo de gastos con forma de pago) ---------- */
+    function cuentaEgresoDeFormaPago(fp){
+      if(fp==='Efectivo') return 'Efectivo';
+      if(fp==='Transferencia' || fp==='E-check') return 'Banco';
+      if(fp==='MP') return 'MP';
+      return null;
+    }
+    function renderEgresos(){
+      const sel = document.getElementById('filtroEgresosCuenta');
+      if(!sel) return;
+      sel.value = filtroEgresosCuenta;
+      const cuenta = filtroEgresosCuenta;
+      const saldoInicial = (data.egresosSaldosIniciales && data.egresosSaldosIniciales[cuenta]) || 0;
+      const inputSaldo = document.getElementById('egresosSaldoInicial');
+      if(inputSaldo && document.activeElement!==inputSaldo) inputSaldo.value = saldoInicial;
+
+      const filas = data.gastos
+        .filter(g=> g.formaPago && cuentaEgresoDeFormaPago(g.formaPago)===cuenta)
+        .slice()
+        .sort((a,b)=> (a.formaPagoFecha||'').localeCompare(b.formaPagoFecha||'') || String(a.id).localeCompare(String(b.id)));
+
+      document.getElementById('countEgresos').textContent = filas.length;
+      const tbody = document.getElementById('tblEgresos');
+      const emptyEl = document.getElementById('emptyEgresos');
+      if(filas.length===0){
+        tbody.innerHTML=''; emptyEl.style.display='block'; return;
+      }
+      emptyEl.style.display='none';
+      let saldo = saldoInicial;
+      tbody.innerHTML = filas.map(g=>{
+        saldo = saldo - (Number(g.total)||0);
+        return `<tr><td>${fmtDate(g.formaPagoFecha)}</td><td>${escapeHtml(g.proveedorNombre||'Sin proveedor')}</td><td>${fmt(g.total)}</td><td><b>${fmt(saldo)}</b></td></tr>`;
+      }).join('');
+    }
+    async function guardarSaldoInicialEgresos(){
+      const cuenta = filtroEgresosCuenta;
+      const valor = Number(document.getElementById('egresosSaldoInicial').value)||0;
+      try{
+        const {error} = await supa.from('egresos_saldos_iniciales').upsert({proyecto_id: currentProyecto.id, cuenta, saldo: valor}, {onConflict:'proyecto_id,cuenta'});
+        if(error) throw error;
+        data.egresosSaldosIniciales[cuenta] = valor;
+        renderEgresos();
+      }catch(e){ alert('Error guardando saldo inicial: ' + e.message); }
+    }
+    document.getElementById('filtroEgresosCuenta')?.addEventListener('change', e=>{
+      filtroEgresosCuenta = e.target.value; renderEgresos();
+    });
+    document.getElementById('btnGuardarSaldoEgresos')?.addEventListener('click', guardarSaldoInicialEgresos);
     function editGasto(id){
   const g = data.gastos.find(x=>x.id===id);
   gastoModalContext = esFamiliaCostoLaboral(g.familiaNombre) ? 'laborales' : 'gastos';
