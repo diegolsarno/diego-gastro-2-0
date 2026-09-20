@@ -319,8 +319,7 @@
     .cal-pagos-day{min-height:60px; font-size:10px; padding:4px;}
     .cal-pagos-item{font-size:9.5px; padding:2px 4px;}
   }
-  .col-forma-pago{text-align:center;}
-  .btn-pago{width:26px; height:26px; border-radius:50%; border:none; color:#fff; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; margin:0 auto;}
+  .btn-pago{width:26px; height:26px; border-radius:50%; border:none; color:#fff; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1;}
   .btn-pago.pago-pend{background:var(--red);}
   .btn-pago.pago-ok{background:var(--green);}
   .pago-chip-menu{position:absolute; z-index:500; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:6px; box-shadow:0 8px 20px rgba(0,0,0,.3); display:flex; flex-direction:column; gap:4px; min-width:130px;}
@@ -531,6 +530,7 @@
   <button data-view="familias" class="active">Familias</button>
   <button data-view="proveedores">Proveedores</button>
   <button data-view="usuarios" id="navUsuarios" class="app-hidden">Usuarios</button>
+  <button data-view="log">Log</button>
 </nav>
 
 <main>
@@ -750,7 +750,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th class="col-forma-pago">Forma de pago</th><th>Estado</th><th></th>
+          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th>Forma de pago</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tblGastos"></tbody>
       </table>
@@ -910,6 +910,22 @@
       </table>
       </div>
       <div class="empty" id="emptyUsuarios" style="display:none;">Todavía no hay usuarios.</div>
+    </div>
+  </div>
+
+  <!-- ========== PARAMETROS: Log de actividad ========== -->
+  <div class="view" id="view-log">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Log de actividad <span class="badge-count" id="countLog">0</span></h2>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Detalle</th></tr></thead>
+        <tbody id="tblLog"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyLog" style="display:none;">Todavía no hay actividad registrada.</div>
     </div>
   </div>
 
@@ -1738,6 +1754,7 @@ function renderAll(){
   renderTotalesGastos();
   renderEerr();
   if(currentProfile && currentProfile.is_admin) renderUsuarios();
+  renderLog();
 }
 function renderResumen(){
   // ---- Resumen financiero: mes corriente + mes anterior (con respecto a los datos cargados) ----
@@ -2383,7 +2400,7 @@ function renderGastos(){
     <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td><b>${fmt(g.total)}</b></td>
-    <td class="col-forma-pago"><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
+    <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
     <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
@@ -3037,6 +3054,75 @@ async function guardarAsignacionUsuario(){
     closeModal('modalAsignarUsuario');
     await renderUsuarios();
   }catch(e){ alert('Error asignando usuario: ' + e.message); }
+}
+
+/* ---------- Log de actividad ---------- */
+function fmtFechaHora(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '-';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm} ${hh}:${mi}`;
+}
+function logNombreProveedor(id){ const p=data.proveedores.find(x=>x.id===id); return p?p.nombre:'proveedor eliminado'; }
+function logNombreFamilia(id){ const f=data.familias.find(x=>x.id===id); return f?f.nombre:'familia eliminada'; }
+function logNombreInsumo(id){ const i=data.insumos.find(x=>x.id===id); return i?i.nombre:'insumo eliminado'; }
+function logDescripcion(entry){
+  const n = entry.datos_nuevos || {};
+  const o = entry.datos_anteriores || {};
+  const v = Object.keys(n).length ? n : o;
+  const accion = entry.operacion==='INSERT' ? 'agregó' : entry.operacion==='DELETE' ? 'eliminó' : 'editó';
+  switch(entry.tabla){
+    case 'gastos':
+      return `${accion} un gasto de ${fmt(Number(v.total)||0)} a ${logNombreProveedor(v.proveedor_id)}`;
+    case 'insumos':
+      return `${accion} el insumo "${v.nombre||'-'}"`;
+    case 'recetas':
+      return `${accion} la receta "${v.nombre||'-'}"`;
+    case 'menu_items':
+      return `${accion} el producto de menú "${v.nombre||'-'}"`;
+    case 'proveedores':
+      return `${accion} el proveedor "${v.nombre||'-'}"`;
+    case 'familias':
+      return `${accion} la familia "${v.nombre||'-'}"`;
+    case 'precio_historico':
+      return `${accion} un precio de ${logNombreInsumo(v.insumo_id)} (${logNombreProveedor(v.proveedor_id)}): ${fmt(Number(v.precio)||0)}`;
+    case 'ventas_diarias':
+      return `${accion} la caja diaria del ${fmtDate(v.fecha)}`;
+    case 'caja_movimientos':
+      return `${accion} un movimiento de caja (${v.cuenta||'-'}) del ${fmtDate(v.fecha)}`;
+    case 'egresos_saldos_iniciales':
+      return `${accion} el saldo inicial de ${v.cuenta||'-'}: ${fmt(Number(v.saldo)||0)}`;
+    default:
+      return `${accion} un registro en ${entry.tabla}`;
+  }
+}
+async function renderLog(){
+  const tbody = document.getElementById('tblLog');
+  if(!tbody || !currentProyecto) return;
+  let logRows = [], elimRows = [];
+  try{
+    const {data:d, error} = await supa.from('log_actividad').select('*').eq('proyecto_id', currentProyecto.id).order('creado_en', {ascending:false}).limit(300);
+    if(error) throw error;
+    logRows = (d||[]).map(e=>({ fecha:e.creado_en, usuario:e.usuario_email || 'Usuario desconocido', detalle:logDescripcion(e) }));
+  }catch(e){ console.error('renderLog log_actividad', e); }
+  try{
+    const {data:d, error} = await supa.from('caja_eliminaciones').select('*').eq('proyecto_id', currentProyecto.id).order('creado_en', {ascending:false}).limit(100);
+    if(error) throw error;
+    elimRows = (d||[]).map(e=>({ fecha:e.creado_en, usuario:e.eliminado_por || 'Usuario desconocido', detalle:`eliminó la caja diaria del ${fmtDate(e.fecha_venta)} — Motivo: ${e.motivo||'-'}` }));
+  }catch(e){ console.error('renderLog caja_eliminaciones', e); }
+  const rows = logRows.concat(elimRows).sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+  document.getElementById('countLog').textContent = rows.length;
+  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyLog').style.display='block'; return; }
+  document.getElementById('emptyLog').style.display='none';
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td class="muted" style="white-space:nowrap;">${fmtFechaHora(r.fecha)}</td>
+    <td>${escapeHtml(r.usuario)}</td>
+    <td>${escapeHtml(r.detalle)}</td>
+  </tr>`).join('');
 }
 
 /* ---------- Gastos: alta / edicion / baja ---------- */
