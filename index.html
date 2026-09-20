@@ -319,7 +319,8 @@
     .cal-pagos-day{min-height:60px; font-size:10px; padding:4px;}
     .cal-pagos-item{font-size:9.5px; padding:2px 4px;}
   }
-  .btn-pago{width:26px; height:26px; border-radius:50%; border:none; color:#fff; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1;}
+  .col-forma-pago{text-align:center;}
+  .btn-pago{width:26px; height:26px; border-radius:50%; border:none; color:#fff; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; margin:0 auto;}
   .btn-pago.pago-pend{background:var(--red);}
   .btn-pago.pago-ok{background:var(--green);}
   .pago-chip-menu{position:absolute; z-index:500; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:6px; box-shadow:0 8px 20px rgba(0,0,0,.3); display:flex; flex-direction:column; gap:4px; min-width:130px;}
@@ -749,7 +750,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th>Forma de pago</th><th>Estado</th><th></th>
+          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th class="col-forma-pago">Forma de pago</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tblGastos"></tbody>
       </table>
@@ -2382,7 +2383,7 @@ function renderGastos(){
     <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td><b>${fmt(g.total)}</b></td>
-    <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
+    <td class="col-forma-pago"><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
     <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
