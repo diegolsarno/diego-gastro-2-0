@@ -692,6 +692,8 @@
               <span class="hint" style="margin:0;">Saldo inicial</span>
               <input id="egresosSaldoInicial" type="number" step="0.01" style="width:120px; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:7px; font-size:12.5px;">
               <button class="btn secondary small" id="btnGuardarSaldoEgresos">Guardar saldo</button>
+              <span class="hint" style="margin:0;">Saldo actual</span>
+              <b id="egresosSaldoActual">$0,00</b>
             </div>
           </div>
           <div class="table-scroll">
@@ -3227,19 +3229,33 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
       if(fp==='MP') return 'MP';
       return null;
     }
+    function totalIngresosCuentaEgresos(cuenta){
+      let total = 0;
+      data.ventasDiarias.forEach(v=>{
+        if(cuenta==='Efectivo') total += (v.restauranteEfectivo||0) + (v.kioscoEfectivo||0) + (v.chiringoEfectivo||0) + (v.parrillaEfectivo||0);
+        else if(cuenta==='Banco') total += (v.restauranteBco||0) + (v.kioscoBco||0);
+        else if(cuenta==='MP') total += (v.restauranteMp||0) + (v.kioscoMp||0) + (v.chiringoMp||0) + (v.parrillaMp||0);
+      });
+      return total;
+    }
     function renderEgresos(){
       const sel = document.getElementById('filtroEgresosCuenta');
       if(!sel) return;
       sel.value = filtroEgresosCuenta;
       const cuenta = filtroEgresosCuenta;
-      const saldoInicial = (data.egresosSaldosIniciales && data.egresosSaldosIniciales[cuenta]) || 0;
+      const saldoInicialManual = (data.egresosSaldosIniciales && data.egresosSaldosIniciales[cuenta]) || 0;
       const inputSaldo = document.getElementById('egresosSaldoInicial');
-      if(inputSaldo && document.activeElement!==inputSaldo) inputSaldo.value = saldoInicial;
+      if(inputSaldo && document.activeElement!==inputSaldo) inputSaldo.value = saldoInicialManual;
 
+      const ingresos = totalIngresosCuentaEgresos(cuenta);
       const filas = data.gastos
         .filter(g=> g.formaPago && cuentaEgresoDeFormaPago(g.formaPago)===cuenta)
         .slice()
         .sort((a,b)=> (a.formaPagoFecha||'').localeCompare(b.formaPagoFecha||'') || String(a.id).localeCompare(String(b.id)));
+
+      const totalGastos = filas.reduce((s,g)=> s + (Number(g.total)||0), 0);
+      const elSaldoActual = document.getElementById('egresosSaldoActual');
+      if(elSaldoActual) elSaldoActual.textContent = fmt(saldoInicialManual + ingresos - totalGastos);
 
       document.getElementById('countEgresos').textContent = filas.length;
       const tbody = document.getElementById('tblEgresos');
@@ -3248,7 +3264,7 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
         tbody.innerHTML=''; emptyEl.style.display='block'; return;
       }
       emptyEl.style.display='none';
-      let saldo = saldoInicial;
+      let saldo = saldoInicialManual + ingresos;
       tbody.innerHTML = filas.map(g=>{
         saldo = saldo - (Number(g.total)||0);
         return `<tr><td>${fmtDate(g.formaPagoFecha)}</td><td>${escapeHtml(g.proveedorNombre||'Sin proveedor')}</td><td>${fmt(g.total)}</td><td><b>${fmt(saldo)}</b></td></tr>`;
