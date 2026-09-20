@@ -689,9 +689,11 @@
                 <option value="Banco">Banco</option>
                 <option value="MP">Mercado Pago</option>
               </select>
-              <span class="hint" style="margin:0;">Saldo inicial</span>
-              <input id="egresosSaldoInicial" type="number" step="0.01" style="width:120px; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:7px; font-size:12.5px;">
-              <button class="btn secondary small" id="btnGuardarSaldoEgresos">Guardar saldo</button>
+              <span class="app-hidden" id="egresosSaldoAdminControls">
+                <span class="hint" style="margin:0;">Saldo inicial</span>
+                <input id="egresosSaldoInicial" type="number" step="0.01" style="width:120px; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:7px; font-size:12.5px;">
+                <button class="btn secondary small" id="btnGuardarSaldoEgresos">Guardar saldo</button>
+              </span>
               <span class="hint" style="margin:0;">Saldo actual</span>
               <b id="egresosSaldoActual">$0,00</b>
             </div>
@@ -1489,6 +1491,14 @@ async function entrarAlProyecto(){
   }else{
     btnCambiar.classList.add('app-hidden');
     navUsuarios.classList.add('app-hidden');
+  }
+  const egresosSaldoAdminControls = document.getElementById('egresosSaldoAdminControls');
+  if(egresosSaldoAdminControls){
+    if(currentUser && currentUser.email === 'diegolsarno@gmail.com'){
+      egresosSaldoAdminControls.classList.remove('app-hidden');
+    }else{
+      egresosSaldoAdminControls.classList.add('app-hidden');
+    }
   }
   await loadAll();
 }
