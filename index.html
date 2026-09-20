@@ -749,7 +749,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th></th>
+          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th>Forma de pago</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tblGastos"></tbody>
       </table>
@@ -2382,8 +2382,9 @@ function renderGastos(){
     <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td><b>${fmt(g.total)}</b></td>
+    <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
+    <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
     <td class="actions">
-      <button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button>
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
     </td></tr>`).join('');
