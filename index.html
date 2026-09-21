@@ -26,6 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root, [data-theme="dark"]{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
@@ -550,7 +551,7 @@
   <!-- ========== COSTO: Resumen ========== -->
   <div class="view active" id="view-resumen">
     <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
-      <button class="btn secondary small" onclick="exportarPDFResumen()">Exportar PDF</button>
+      <button class="btn secondary small" onclick="abrirExportarPDF('resumen')">Exportar</button>
     </div>
     <h3 id="resumenMesActualTitulo" style="margin:0 0 12px; font-size:15px; font-weight:600;"></h3>
     <div class="cards" id="resumenMesActualCards"></div>
@@ -570,7 +571,7 @@
         <div class="filters">
           <input type="text" id="filtroInsumoBusqueda" placeholder="Buscar insumo...">
           <select id="filtroInsumoFamilia"><option value="">Todas las familias</option></select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('insumos')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('insumos')">Exportar</button>
           <button class="btn" id="btnAddInsumo">+ Agregar insumo</button>
         </div>
       </div>
@@ -595,7 +596,7 @@
         <div class="filters">
           <input type="text" id="filtroRecetaBusqueda" placeholder="Buscar receta...">
           <select id="filtroRecetaCategoria"><option value="">Todas las categorías</option></select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('recetas')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('recetas')">Exportar</button>
           <button class="btn" id="btnAddReceta">+ Agregar receta</button>
         </div>
       </div>
@@ -616,7 +617,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Menú <span class="badge-count" id="countMenu">0</span></h2>
-        <button class="btn secondary small" onclick="exportarPDFMenu()">Exportar PDF</button>
+        <button class="btn secondary small" onclick="abrirExportarPDF('menu')">Exportar</button>
         <button class="btn" id="btnAddMenu">+ Agregar producto</button>
       </div>
       <div class="table-scroll">
@@ -639,7 +640,7 @@
         <h2>Progresión de precios <span class="badge-count" id="countPrecios">0</span></h2>
         <div class="filters">
           <select id="filtroPreciosInsumo"><option value="">Todos los insumos</option></select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('precios')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('precios')">Exportar</button>
           <button class="btn" id="btnAddPrecio">+ Agregar precio</button>
         </div>
       </div>
@@ -661,7 +662,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Ventas diarias <span class="badge-count" id="countVentas">0</span></h2>
-        <div class="filters"><select id="filtroVentasMes"></select> <button class="btn secondary small" onclick="abrirExportarPDF('ventas')">Exportar PDF</button> <button class="btn" id="btnAddCajaDiaria">+ Agregar caja diaria</button> </div>
+        <div class="filters"><select id="filtroVentasMes"></select> <button class="btn secondary small" onclick="abrirExportarPDF('ventas')">Exportar</button> <button class="btn" id="btnAddCajaDiaria">+ Agregar caja diaria</button> </div>
       </div>
       <div class="table-scroll">
       <table>
@@ -683,7 +684,7 @@
             <option value="Efectivo">Efectivo</option>
             <option value="MP">MP</option>
           </select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('movcaja')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('movcaja')">Exportar</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -717,7 +718,7 @@
               </span>
               <span class="hint" style="margin:0;">Saldo actual</span>
               <b id="egresosSaldoActual">$0,00</b>
-              <button class="btn secondary small" onclick="abrirExportarPDF('egresos')">Exportar PDF</button>
+              <button class="btn secondary small" onclick="abrirExportarPDF('egresos')">Exportar</button>
             </div>
           </div>
           <div class="table-scroll">
@@ -734,7 +735,7 @@
   <div class="view" id="view-totales">
     <div class="panel">
       <div class="panel-head"><h2>Totales mensuales</h2>
-        <div class="filters"><button class="btn secondary small" onclick="abrirExportarPDF('totales')">Exportar PDF</button></div>
+        <div class="filters"><button class="btn secondary small" onclick="abrirExportarPDF('totales')">Exportar</button></div>
       </div>
       <div class="table-scroll">
       <table class="totales-table">
@@ -772,7 +773,7 @@
         <h2>Gastos <span class="badge-count" id="countGastos">0</span></h2>
         <div class="filters">
           <select id="filtroGastosMes"></select> <select id="filtroGastosFamilia"><option value="">Todas las familias</option></select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('gastos')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('gastos')">Exportar</button>
           <button class="btn" id="btnAddGasto">+ Agregar</button>
         </div>
       </div>
@@ -796,7 +797,7 @@
             <div class="filters">
               <button class="btn secondary small" onclick="calPagosMesAnterior()">&lsaquo; Mes anterior</button>
               <button class="btn secondary small" onclick="calPagosMesSiguiente()">Mes siguiente &rsaquo;</button>
-              <button class="btn secondary small" onclick="abrirExportarPDF('calendario')">Exportar PDF</button>
+              <button class="btn secondary small" onclick="abrirExportarPDF('calendario')">Exportar</button>
             </div>
           </div>
           <div id="calPagosGrid" class="cal-pagos-grid"></div>
@@ -817,7 +818,7 @@
             <option value="Management">Management</option>
             <option value="Administracion">Administración</option>
           </select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('costoslaborales')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('costoslaborales')">Exportar</button>
           <button class="btn" id="btnAddCostoLaboral">+ Agregar</button>
         </div>
       </div>
@@ -858,7 +859,7 @@
         <h2>Totales gastos por familia</h2>
         <div class="filters">
           <select id="filtroTotalesGastosMes"></select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('totalesgastos')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('totalesgastos')">Exportar</button>
         </div>
       </div>
       <div id="totalesGastosContent">
@@ -883,7 +884,7 @@
         <h2>Estado de resultados (EERR) — detalle mensual</h2>
         <div class="filters">
           <button class="btn secondary small" id="btnToggleEerrMeses" style="display:none;">Ver meses anteriores</button>
-          <button class="btn secondary small" onclick="abrirExportarPDF('eerr')">Exportar PDF</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('eerr')">Exportar</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -901,7 +902,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Familias <span class="badge-count" id="countFamilias">0</span></h2>
-        <button class="btn secondary small" onclick="exportarPDFFamilias()">Exportar PDF</button>
+        <button class="btn secondary small" onclick="abrirExportarPDF('familias')">Exportar</button>
         <button class="btn" id="btnAddFamilia">+ Agregar familia</button>
       </div>
       <div class="table-scroll">
@@ -919,7 +920,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Proveedores <span class="badge-count" id="countProveedores">0</span></h2>
-        <button class="btn secondary small" onclick="exportarPDFProveedores()">Exportar PDF</button>
+        <button class="btn secondary small" onclick="abrirExportarPDF('proveedores')">Exportar</button>
         <button class="btn" id="btnAddProveedor">+ Agregar proveedor</button>
       </div>
       <div class="table-scroll">
@@ -937,7 +938,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Usuarios <span class="badge-count" id="countUsuarios">0</span></h2>
-        <button class="btn secondary small" onclick="exportarPDFUsuarios()">Exportar PDF</button>
+        <button class="btn secondary small" onclick="abrirExportarPDF('usuarios')">Exportar</button>
       </div>
       <div class="table-scroll">
       <table>
@@ -954,7 +955,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Log de actividad <span class="badge-count" id="countLog">0</span></h2>
-        <button class="btn secondary small" onclick="abrirExportarPDF('log')">Exportar PDF</button>
+        <button class="btn secondary small" onclick="abrirExportarPDF('log')">Exportar</button>
       </div>
       <div class="table-scroll">
       <table>
@@ -1042,7 +1043,14 @@
 <!-- MODAL EXPORTAR PDF -->
 <div class="overlay" id="modalExportarPDF">
   <div class="modal">
-    <h3 id="exportarPDFTitulo">Exportar PDF</h3>
+    <h3 id="exportarPDFTitulo">Exportar</h3>
+    <div class="field">
+      <label>Formato</label>
+      <div style="display:flex; gap:16px; margin-top:2px;">
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text); text-transform:none; font-size:13px;"><input type="radio" name="exportarPDFFormato" value="pdf" checked> PDF</label>
+        <label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text); text-transform:none; font-size:13px;"><input type="radio" name="exportarPDFFormato" value="excel"> Excel</label>
+      </div>
+    </div>
     <div class="row2" id="exportarPDFCamposFecha">
       <div class="field"><label>Desde</label><input type="date" id="exportarPDFDesde"></div>
       <div class="field"><label>Hasta</label><input type="date" id="exportarPDFHasta"></div>
@@ -1066,7 +1074,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalExportarPDF')">Cancelar</button>
-      <button class="btn" id="btnConfirmarExportarPDF">Generar PDF</button>
+      <button class="btn" id="btnConfirmarExportarPDF">Generar</button>
     </div>
   </div>
 </div>
@@ -1731,13 +1739,16 @@ function abrirExportarPDF(contexto){
   document.getElementById('exportarPDFCamposCuenta').style.display = esCuenta ? 'block' : 'none';
   document.getElementById('exportarPDFCamposExtra').style.display = esExtra ? 'block' : 'none';
   const titulos = {
-    gastos:'Exportar Gastos a PDF', egresos:'Exportar Egresos a PDF', ventas:'Exportar Ventas diarias a PDF', eerr:'Exportar EERR a PDF',
-    insumos:'Exportar Insumos a PDF', recetas:'Exportar Recetas a PDF', precios:'Exportar Progresión de precios a PDF',
-    costoslaborales:'Exportar Costos laborales a PDF', movcaja:'Exportar Movimientos de caja a PDF',
-    totales:'Exportar Totales mensuales a PDF', totalesgastos:'Exportar Totales gastos a PDF', calendario:'Exportar Calendario de pagos a PDF',
-    log:'Exportar Log de actividad a PDF',
+    gastos:'Exportar Gastos', egresos:'Exportar Egresos', ventas:'Exportar Ventas diarias', eerr:'Exportar EERR',
+    insumos:'Exportar Insumos', recetas:'Exportar Recetas', precios:'Exportar Progresión de precios',
+    costoslaborales:'Exportar Costos laborales', movcaja:'Exportar Movimientos de caja',
+    totales:'Exportar Totales mensuales', totalesgastos:'Exportar Totales gastos', calendario:'Exportar Calendario de pagos',
+    log:'Exportar Log de actividad', resumen:'Exportar Resumen', menu:'Exportar Menú',
+    familias:'Exportar Familias', proveedores:'Exportar Proveedores', usuarios:'Exportar Usuarios',
   };
-  document.getElementById('exportarPDFTitulo').textContent = titulos[contexto] || 'Exportar PDF';
+  document.getElementById('exportarPDFTitulo').textContent = titulos[contexto] || 'Exportar';
+  const formatoRadioPdf = document.querySelector('input[name="exportarPDFFormato"][value="pdf"]');
+  if(formatoRadioPdf) formatoRadioPdf.checked = true;
   const hoy = new Date();
   const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0,10);
   const hoyStr = hoy.toISOString().slice(0,10);
@@ -1780,7 +1791,32 @@ function abrirExportarPDF(contexto){
   }
   openModal('modalExportarPDF');
 }
+let exportarFormatoSeleccionado = 'pdf';
+function nombreArchivoReporte(titulo, ext){
+  return titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.' + ext;
+}
+function generarExcelTabla({titulo, subtitulo, columnas, filas, totalesFila}){
+  const nombreProyecto = (currentProyecto && currentProyecto.nombre) || 'Establecimiento';
+  const aoa = [[nombreProyecto], [titulo]];
+  if(subtitulo) aoa.push([subtitulo]);
+  aoa.push([]);
+  aoa.push(columnas);
+  filas.forEach(f=> aoa.push(f));
+  if(totalesFila) aoa.push(totalesFila);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = columnas.map((c,i)=>{
+    const maxLen = Math.max(String(c).length, ...filas.map(f=> String(f[i]==null?'':f[i]).length), 8);
+    return { wch: Math.min(maxLen+2, 40) };
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+  XLSX.writeFile(wb, nombreArchivoReporte(titulo, 'xlsx'));
+}
 function generarPDFTabla({titulo, subtitulo, columnas, filas, totalesFila}){
+  if(exportarFormatoSeleccionado === 'excel'){
+    generarExcelTabla({titulo, subtitulo, columnas, filas, totalesFila});
+    return;
+  }
   const { jsPDF } = window.jspdf;
   const orientation = columnas.length > 6 ? 'landscape' : 'portrait';
   const doc = new jsPDF({orientation, unit:'pt'});
@@ -1803,14 +1839,22 @@ function generarPDFTabla({titulo, subtitulo, columnas, filas, totalesFila}){
     headStyles: {fillColor:[79,140,255]},
     footStyles: {fillColor:[230,230,230], textColor:20, fontStyle:'bold'},
   });
-  const filename = titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
-  doc.save(filename);
+  doc.save(nombreArchivoReporte(titulo, 'pdf'));
 }
 document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=>{
   const contexto = exportarPDFContexto;
+  const formatoElegido = document.querySelector('input[name="exportarPDFFormato"]:checked');
+  exportarFormatoSeleccionado = formatoElegido ? formatoElegido.value : 'pdf';
   try{
+    const esSinFiltro = ['familias','proveedores','usuarios','menu','resumen'].includes(contexto);
     const esMes = ['eerr','totales','totalesgastos','calendario','precios'].includes(contexto);
-    if(esMes){
+    if(esSinFiltro){
+      if(contexto==='familias') exportarPDFFamilias();
+      else if(contexto==='proveedores') exportarPDFProveedores();
+      else if(contexto==='usuarios') exportarPDFUsuarios();
+      else if(contexto==='menu') exportarPDFMenu();
+      else if(contexto==='resumen') exportarPDFResumen();
+    }else if(esMes){
       const mesDesde = document.getElementById('exportarPDFMesDesde').value;
       const mesHasta = document.getElementById('exportarPDFMesHasta').value;
       if(!mesDesde || !mesHasta){ alert('Elegí el rango de meses.'); return; }
@@ -1846,7 +1890,7 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
       }else if(contexto==='log') exportarPDFLog(desde, hasta);
     }
     closeModal('modalExportarPDF');
-  }catch(e){ alert('Error generando el PDF: ' + e.message); }
+  }catch(e){ alert('Error generando el reporte: ' + e.message); }
 });
 
 /* ---------- Navegación de 2 niveles: secciones + sub-tabs ---------- */
