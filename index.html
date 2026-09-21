@@ -686,7 +686,8 @@
             <div class="filters">
               <select id="filtroEgresosCuenta">
                 <option value="Efectivo">Efectivo</option>
-                <option value="Banco">Banco</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Banco">Banco (E-check)</option>
                 <option value="MP">Mercado Pago</option>
               </select>
               <span class="app-hidden" id="egresosSaldoAdminControls">
@@ -3235,7 +3236,8 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
     /* ---------- Egresos (derivado en vivo de gastos con forma de pago) ---------- */
     function cuentaEgresoDeFormaPago(fp){
       if(fp==='Efectivo') return 'Efectivo';
-      if(fp==='Transferencia' || fp==='E-check') return 'Banco';
+      if(fp==='Transferencia') return 'Transferencia';
+      if(fp==='E-check') return 'Banco';
       if(fp==='MP') return 'MP';
       return null;
     }
