@@ -539,6 +539,9 @@
 
   <!-- ========== COSTO: Resumen ========== -->
   <div class="view active" id="view-resumen">
+    <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+      <button class="btn secondary small" onclick="exportarPDFResumen()">Exportar PDF</button>
+    </div>
     <h3 id="resumenMesActualTitulo" style="margin:0 0 12px; font-size:15px; font-weight:600;"></h3>
     <div class="cards" id="resumenMesActualCards"></div>
 
@@ -557,6 +560,7 @@
         <div class="filters">
           <input type="text" id="filtroInsumoBusqueda" placeholder="Buscar insumo...">
           <select id="filtroInsumoFamilia"><option value="">Todas las familias</option></select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('insumos')">Exportar PDF</button>
           <button class="btn" id="btnAddInsumo">+ Agregar insumo</button>
         </div>
       </div>
@@ -581,6 +585,7 @@
         <div class="filters">
           <input type="text" id="filtroRecetaBusqueda" placeholder="Buscar receta...">
           <select id="filtroRecetaCategoria"><option value="">Todas las categorías</option></select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('recetas')">Exportar PDF</button>
           <button class="btn" id="btnAddReceta">+ Agregar receta</button>
         </div>
       </div>
@@ -601,6 +606,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Menú <span class="badge-count" id="countMenu">0</span></h2>
+        <button class="btn secondary small" onclick="exportarPDFMenu()">Exportar PDF</button>
         <button class="btn" id="btnAddMenu">+ Agregar producto</button>
       </div>
       <div class="table-scroll">
@@ -623,6 +629,7 @@
         <h2>Progresión de precios <span class="badge-count" id="countPrecios">0</span></h2>
         <div class="filters">
           <select id="filtroPreciosInsumo"><option value="">Todos los insumos</option></select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('precios')">Exportar PDF</button>
           <button class="btn" id="btnAddPrecio">+ Agregar precio</button>
         </div>
       </div>
@@ -666,6 +673,7 @@
             <option value="Efectivo">Efectivo</option>
             <option value="MP">MP</option>
           </select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('movcaja')">Exportar PDF</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -715,7 +723,9 @@
   <!-- ========== ADMINISTRACION: Totales ========== -->
   <div class="view" id="view-totales">
     <div class="panel">
-      <div class="panel-head"><h2>Totales mensuales</h2></div>
+      <div class="panel-head"><h2>Totales mensuales</h2>
+        <div class="filters"><button class="btn secondary small" onclick="abrirExportarPDF('totales')">Exportar PDF</button></div>
+      </div>
       <div class="table-scroll">
       <table class="totales-table">
         <thead>
@@ -776,6 +786,7 @@
             <div class="filters">
               <button class="btn secondary small" onclick="calPagosMesAnterior()">&lsaquo; Mes anterior</button>
               <button class="btn secondary small" onclick="calPagosMesSiguiente()">Mes siguiente &rsaquo;</button>
+              <button class="btn secondary small" onclick="abrirExportarPDF('calendario')">Exportar PDF</button>
             </div>
           </div>
           <div id="calPagosGrid" class="cal-pagos-grid"></div>
@@ -796,6 +807,7 @@
             <option value="Management">Management</option>
             <option value="Administracion">Administración</option>
           </select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('costoslaborales')">Exportar PDF</button>
           <button class="btn" id="btnAddCostoLaboral">+ Agregar</button>
         </div>
       </div>
@@ -836,6 +848,7 @@
         <h2>Totales gastos por familia</h2>
         <div class="filters">
           <select id="filtroTotalesGastosMes"></select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('totalesgastos')">Exportar PDF</button>
         </div>
       </div>
       <div id="totalesGastosContent">
@@ -878,6 +891,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Familias <span class="badge-count" id="countFamilias">0</span></h2>
+        <button class="btn secondary small" onclick="exportarPDFFamilias()">Exportar PDF</button>
         <button class="btn" id="btnAddFamilia">+ Agregar familia</button>
       </div>
       <div class="table-scroll">
@@ -895,6 +909,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Proveedores <span class="badge-count" id="countProveedores">0</span></h2>
+        <button class="btn secondary small" onclick="exportarPDFProveedores()">Exportar PDF</button>
         <button class="btn" id="btnAddProveedor">+ Agregar proveedor</button>
       </div>
       <div class="table-scroll">
@@ -912,6 +927,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Usuarios <span class="badge-count" id="countUsuarios">0</span></h2>
+        <button class="btn secondary small" onclick="exportarPDFUsuarios()">Exportar PDF</button>
       </div>
       <div class="table-scroll">
       <table>
@@ -928,6 +944,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Log de actividad <span class="badge-count" id="countLog">0</span></h2>
+        <button class="btn secondary small" onclick="abrirExportarPDF('log')">Exportar PDF</button>
       </div>
       <div class="table-scroll">
       <table>
@@ -1032,6 +1049,10 @@
         <option value="Banco">Banco (E-check)</option>
         <option value="MP">Mercado Pago</option>
       </select>
+    </div>
+    <div class="field" id="exportarPDFCamposExtra" style="display:none;">
+      <label id="exportarPDFExtraLabel">Filtro</label>
+      <select id="exportarPDFExtra"></select>
     </div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalExportarPDF')">Cancelar</button>
@@ -1691,26 +1712,61 @@ function escapeHtml(s){
 let exportarPDFContexto = null;
 function abrirExportarPDF(contexto){
   exportarPDFContexto = contexto;
-  const esMes = contexto==='eerr';
-  const esCuenta = contexto==='egresos';
-  document.getElementById('exportarPDFCamposFecha').style.display = esMes ? 'none' : 'grid';
+  const esMes = ['eerr','totales','totalesgastos','calendario','precios'].includes(contexto);
+  const esFecha = ['gastos','egresos','ventas','costoslaborales','movcaja','log'].includes(contexto);
+  const esCuenta = contexto==='egresos' || contexto==='movcaja';
+  const esExtra = ['insumos','recetas','precios'].includes(contexto);
+  document.getElementById('exportarPDFCamposFecha').style.display = esFecha ? 'grid' : 'none';
   document.getElementById('exportarPDFCamposMes').style.display = esMes ? 'grid' : 'none';
   document.getElementById('exportarPDFCamposCuenta').style.display = esCuenta ? 'block' : 'none';
-  const titulos = {gastos:'Exportar Gastos a PDF', egresos:'Exportar Egresos a PDF', ventas:'Exportar Ventas diarias a PDF', eerr:'Exportar EERR a PDF'};
+  document.getElementById('exportarPDFCamposExtra').style.display = esExtra ? 'block' : 'none';
+  const titulos = {
+    gastos:'Exportar Gastos a PDF', egresos:'Exportar Egresos a PDF', ventas:'Exportar Ventas diarias a PDF', eerr:'Exportar EERR a PDF',
+    insumos:'Exportar Insumos a PDF', recetas:'Exportar Recetas a PDF', precios:'Exportar Progresión de precios a PDF',
+    costoslaborales:'Exportar Costos laborales a PDF', movcaja:'Exportar Movimientos de caja a PDF',
+    totales:'Exportar Totales mensuales a PDF', totalesgastos:'Exportar Totales gastos a PDF', calendario:'Exportar Calendario de pagos a PDF',
+    log:'Exportar Log de actividad a PDF',
+  };
   document.getElementById('exportarPDFTitulo').textContent = titulos[contexto] || 'Exportar PDF';
   const hoy = new Date();
   const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0,10);
   const hoyStr = hoy.toISOString().slice(0,10);
-  if(!esMes){
+  if(esFecha){
     document.getElementById('exportarPDFDesde').value = primerDiaMes;
     document.getElementById('exportarPDFHasta').value = hoyStr;
-  }else{
+  }
+  if(esMes){
     const mesActual = hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
     document.getElementById('exportarPDFMesDesde').value = mesActual;
     document.getElementById('exportarPDFMesHasta').value = mesActual;
   }
   if(esCuenta){
-    document.getElementById('exportarPDFCuenta').value = filtroEgresosCuenta;
+    const cuentaSel = document.getElementById('exportarPDFCuenta');
+    if(contexto==='egresos'){
+      cuentaSel.innerHTML = '<option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Banco">Banco (E-check)</option><option value="MP">Mercado Pago</option>';
+      cuentaSel.value = filtroEgresosCuenta;
+    }else if(contexto==='movcaja'){
+      cuentaSel.innerHTML = '<option value="">Todas las cuentas</option><option value="Galicia">Galicia</option><option value="Efectivo">Efectivo</option><option value="MP">MP</option>';
+      cuentaSel.value = filtroCajaCuentaVal;
+    }
+  }
+  if(esExtra){
+    const extraLabel = document.getElementById('exportarPDFExtraLabel');
+    const extraSel = document.getElementById('exportarPDFExtra');
+    if(contexto==='insumos'){
+      extraLabel.textContent = 'Familia';
+      const familiasUnicas = [...new Set(data.insumos.map(i=>i.familia).filter(Boolean))].sort();
+      extraSel.innerHTML = '<option value="">Todas las familias</option>' + familiasUnicas.map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+    }else if(contexto==='recetas'){
+      extraLabel.textContent = 'Categoría';
+      const categoriasUnicas = [...new Set(data.recetas.map(r=>r.categoria).filter(Boolean))].sort();
+      extraSel.innerHTML = '<option value="">Todas las categorías</option>' + categoriasUnicas.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }else if(contexto==='precios'){
+      extraLabel.textContent = 'Insumo';
+      const nombresUnicos = [...new Set(data.precioHistorico.map(p=>p.insumoNombre))].sort();
+      extraSel.innerHTML = '<option value="">Todos los insumos</option>' + nombresUnicos.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    }
+    extraSel.value = '';
   }
   openModal('modalExportarPDF');
 }
@@ -1743,12 +1799,26 @@ function generarPDFTabla({titulo, subtitulo, columnas, filas, totalesFila}){
 document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=>{
   const contexto = exportarPDFContexto;
   try{
-    if(contexto==='eerr'){
+    const esMes = ['eerr','totales','totalesgastos','calendario','precios'].includes(contexto);
+    if(esMes){
       const mesDesde = document.getElementById('exportarPDFMesDesde').value;
       const mesHasta = document.getElementById('exportarPDFMesHasta').value;
       if(!mesDesde || !mesHasta){ alert('Elegí el rango de meses.'); return; }
       if(mesDesde > mesHasta){ alert('El mes "desde" no puede ser posterior al mes "hasta".'); return; }
-      exportarPDFEerr(mesDesde, mesHasta);
+      if(contexto==='eerr') exportarPDFEerr(mesDesde, mesHasta);
+      else if(contexto==='totales') exportarPDFTotales(mesDesde, mesHasta);
+      else if(contexto==='totalesgastos') exportarPDFTotalesGastos(mesDesde, mesHasta);
+      else if(contexto==='calendario') exportarPDFCalendario(mesDesde, mesHasta);
+      else if(contexto==='precios'){
+        const insumoNombre = document.getElementById('exportarPDFExtra').value;
+        exportarPDFPrecios(mesDesde, mesHasta, insumoNombre);
+      }
+    }else if(contexto==='insumos'){
+      const familia = document.getElementById('exportarPDFExtra').value;
+      exportarPDFInsumos(familia);
+    }else if(contexto==='recetas'){
+      const categoria = document.getElementById('exportarPDFExtra').value;
+      exportarPDFRecetas(categoria);
     }else{
       const desde = document.getElementById('exportarPDFDesde').value;
       const hasta = document.getElementById('exportarPDFHasta').value;
@@ -1759,7 +1829,11 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
       else if(contexto==='egresos'){
         const cuenta = document.getElementById('exportarPDFCuenta').value;
         exportarPDFEgresos(desde, hasta, cuenta);
-      }
+      }else if(contexto==='costoslaborales') exportarPDFCostosLaborales(desde, hasta);
+      else if(contexto==='movcaja'){
+        const cuenta = document.getElementById('exportarPDFCuenta').value;
+        exportarPDFMovCaja(desde, hasta, cuenta);
+      }else if(contexto==='log') exportarPDFLog(desde, hasta);
     }
     closeModal('modalExportarPDF');
   }catch(e){ alert('Error generando el PDF: ' + e.message); }
@@ -2570,6 +2644,246 @@ function exportarPDFGastos(desde, hasta){
     totalesFila: ['','','','','','Total', fmt(total)],
   });
 }
+function exportarPDFCostosLaborales(desde, hasta){
+  const rows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre))
+    .filter(g=>{ const f = g.fechaFc||g.fechaCarga; return f && f>=desde && f<=hasta; })
+    .sort((a,b)=> (a.fechaFc||a.fechaCarga||'').localeCompare(b.fechaFc||b.fechaCarga||''));
+  const columnas = ['Fecha','Proveedor','Familia','Tipo de personal','Tipo de gasto','Comprobante','N°','Total'];
+  const filas = rows.map(g=> [fmtDate(g.fechaFc||g.fechaCarga), g.proveedorNombre||'-', g.familiaNombre||'-', labelTipoPersonal(g.tipoPersonal), g.tipoGasto||'-', g.tipoComprobante||'-', g.nComprobante||'-', fmt(g.total)]);
+  const total = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
+  generarPDFTabla({
+    titulo: 'Costos laborales',
+    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} comprobante(s)`,
+    columnas, filas,
+    totalesFila: ['','','','','','','Total', fmt(total)],
+  });
+}
+function exportarPDFMovCaja(desde, hasta, cuenta){
+  const rows = data.cajaMovimientos
+    .filter(c=> !cuenta || c.cuenta===cuenta)
+    .filter(c=> c.fecha && c.fecha>=desde && c.fecha<=hasta)
+    .sort((a,b)=> a.cuenta===b.cuenta ? a.fecha.localeCompare(b.fecha) : a.cuenta.localeCompare(b.cuenta));
+  const columnas = ['Fecha','Cuenta','Ventas','Otro ingreso','Gastos','Comisiones','Impuestos','Retiros','Saldo'];
+  const filas = rows.map(c=> [fmtDate(c.fecha), c.cuenta, fmt(c.ventas), fmt(c.otroIngreso), fmt(c.gastos), fmt(c.comisiones), fmt(c.impuestos), fmt(c.retiros), fmt(c.saldo)]);
+  generarPDFTabla({
+    titulo: 'Movimientos de caja',
+    subtitulo: (cuenta?`Cuenta: ${cuenta} — `:'') + `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} movimiento(s)`,
+    columnas, filas,
+  });
+}
+function exportarPDFTotales(mesDesde, mesHasta){
+  const vd = data.ventasDiarias.filter(v=>{ const k=(v.fecha||'').slice(0,7); return k && k>=mesDesde && k<=mesHasta; });
+  const meses = new Map();
+  vd.forEach(v=>{
+    const key = (v.fecha||'').slice(0,7);
+    if(!key) return;
+    if(!meses.has(key)){
+      meses.set(key, {
+        restEfectivo:0, restBco:0, restMp:0,
+        viandasTotal:0, viandasCantidad:0, terceirosTotal:0, terceirosCantidad:0,
+        kioscoEfectivo:0, kioscoBco:0, kioscoMp:0,
+        chiringoEfectivo:0, chiringoMp:0,
+        parrillaEfectivo:0, parrillaMp:0,
+      });
+    }
+    const m = meses.get(key);
+    m.restEfectivo += v.restauranteEfectivo; m.restBco += v.restauranteBco; m.restMp += v.restauranteMp;
+    m.viandasTotal += v.viandasTotal; m.viandasCantidad += v.viandasCantidad;
+    m.terceirosTotal += v.terceirosTotal; m.terceirosCantidad += v.terceirosCantidad;
+    m.kioscoEfectivo += v.kioscoEfectivo; m.kioscoBco += v.kioscoBco; m.kioscoMp += v.kioscoMp;
+    m.chiringoEfectivo += (v.chiringoEfectivo||0); m.chiringoMp += (v.chiringoMp||0);
+    m.parrillaEfectivo += v.parrillaEfectivo; m.parrillaMp += v.parrillaMp;
+  });
+  const keysOrdenadas = [...meses.keys()].sort();
+  const columnas = ['Mes','Rest. Total','Rest. Efectivo','Rest. Banco','Rest. MP','Viandas Total','Viandas Cant.','3ros Total','3ros Cant.','Kiosco Total','Kiosco Efectivo','Kiosco Banco','Kiosco MP','Chiringo Total','Chiringo Efectivo','Chiringo MP','Parrilla Total','Parrilla Efectivo','Parrilla MP','Total mes'];
+  const tot = {rest:0,restEf:0,restBco:0,restMp:0,via:0,viaCant:0,ter:0,terCant:0,kio:0,kioEf:0,kioBco:0,kioMp:0,chi:0,chiEf:0,chiMp:0,par:0,parEf:0,parMp:0,mes:0};
+  const filas = keysOrdenadas.map(key=>{
+    const m = meses.get(key);
+    const restTotal = m.restEfectivo + m.restBco + m.restMp;
+    const kioscoTotal = m.kioscoEfectivo + m.kioscoBco + m.kioscoMp;
+    const chiringoTotal = m.chiringoEfectivo + m.chiringoMp;
+    const parrillaTotal = m.parrillaEfectivo + m.parrillaMp;
+    const totalMes = restTotal + m.viandasTotal + m.terceirosTotal + kioscoTotal + chiringoTotal + parrillaTotal;
+    tot.rest+=restTotal; tot.restEf+=m.restEfectivo; tot.restBco+=m.restBco; tot.restMp+=m.restMp;
+    tot.via+=m.viandasTotal; tot.viaCant+=m.viandasCantidad; tot.ter+=m.terceirosTotal; tot.terCant+=m.terceirosCantidad;
+    tot.kio+=kioscoTotal; tot.kioEf+=m.kioscoEfectivo; tot.kioBco+=m.kioscoBco; tot.kioMp+=m.kioscoMp;
+    tot.chi+=chiringoTotal; tot.chiEf+=m.chiringoEfectivo; tot.chiMp+=m.chiringoMp;
+    tot.par+=parrillaTotal; tot.parEf+=m.parrillaEfectivo; tot.parMp+=m.parrillaMp;
+    tot.mes+=totalMes;
+    return [fmtMes(key+'-01'), fmt(restTotal), fmt(m.restEfectivo), fmt(m.restBco), fmt(m.restMp),
+      fmt(m.viandasTotal), m.viandasCantidad, fmt(m.terceirosTotal), m.terceirosCantidad,
+      fmt(kioscoTotal), fmt(m.kioscoEfectivo), fmt(m.kioscoBco), fmt(m.kioscoMp),
+      fmt(chiringoTotal), fmt(m.chiringoEfectivo), fmt(m.chiringoMp),
+      fmt(parrillaTotal), fmt(m.parrillaEfectivo), fmt(m.parrillaMp), fmt(totalMes)];
+  });
+  const totalesFila = ['Total', fmt(tot.rest), fmt(tot.restEf), fmt(tot.restBco), fmt(tot.restMp),
+    fmt(tot.via), tot.viaCant, fmt(tot.ter), tot.terCant,
+    fmt(tot.kio), fmt(tot.kioEf), fmt(tot.kioBco), fmt(tot.kioMp),
+    fmt(tot.chi), fmt(tot.chiEf), fmt(tot.chiMp),
+    fmt(tot.par), fmt(tot.parEf), fmt(tot.parMp), fmt(tot.mes)];
+  generarPDFTabla({
+    titulo: 'Totales mensuales',
+    subtitulo: `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')}`,
+    columnas, filas, totalesFila,
+  });
+}
+function exportarPDFTotalesGastos(mesDesde, mesHasta){
+  const rows = data.gastos.filter(g=>{ const k=monthKey(g.fechaFc||g.fechaCarga); return k && k>=mesDesde && k<=mesHasta; });
+  const porFamilia = new Map();
+  rows.forEach(g=>{
+    const key = g.familiaNombre || '(sin familia)';
+    porFamilia.set(key, (porFamilia.get(key)||0) + g.total);
+  });
+  const totalPeriodo = [...porFamilia.values()].reduce((s,v)=>s+v,0);
+  const entries = [...porFamilia.entries()].sort((a,b)=> b[1]-a[1]);
+  const columnas = ['Familia','Total','% del período'];
+  const filas = entries.map(([nombre,total])=>{
+    const pct = totalPeriodo>0 ? total/totalPeriodo : null;
+    return [nombre, fmt(total), pct===null?'-':fmtPct(pct)];
+  });
+  generarPDFTabla({
+    titulo: 'Totales gastos por familia',
+    subtitulo: `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')} — Total: ${fmt(totalPeriodo)}`,
+    columnas, filas,
+    totalesFila: ['Total', fmt(totalPeriodo), totalPeriodo>0?'100%':'-'],
+  });
+}
+function exportarPDFCalendario(mesDesde, mesHasta){
+  const rows = data.gastos.filter(g=> g.fechaPago && monthKey(g.fechaPago)>=mesDesde && monthKey(g.fechaPago)<=mesHasta)
+    .sort((a,b)=> (a.fechaPago||'').localeCompare(b.fechaPago||''));
+  const columnas = ['Fecha de pago','Proveedor','Familia','Total'];
+  const filas = rows.map(g=> [fmtDate(g.fechaPago), g.proveedorNombre||'-', g.familiaNombre||'-', fmt(g.total)]);
+  const total = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
+  generarPDFTabla({
+    titulo: 'Calendario de pagos',
+    subtitulo: `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')} — ${rows.length} pago(s)`,
+    columnas, filas,
+    totalesFila: ['','','Total', fmt(total)],
+  });
+}
+function exportarPDFInsumos(familia){
+  const rows = data.insumos.filter(i=> !familia || i.familia===familia).slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+  const columnas = ['Nombre','Familia','Unidad','Precio actual','Precio anterior','% aumento','IVA'];
+  const filas = rows.map(ins=>{
+    const aumento = ins.precioAnterior>0 ? (ins.precioActual-ins.precioAnterior)/ins.precioAnterior : null;
+    return [ins.nombre, ins.familia||'-', ins.unidad, fmt(ins.precioActual), fmt(ins.precioAnterior), aumento===null?'-':fmtPct(aumento), ins.iva+'%'];
+  });
+  generarPDFTabla({
+    titulo: 'Insumos',
+    subtitulo: (familia?`Familia: ${familia} — `:'') + `${rows.length} insumo(s)`,
+    columnas, filas,
+  });
+}
+function exportarPDFRecetas(categoria){
+  const rows = data.recetas.filter(r=> !categoria || r.categoria===categoria).slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+  const columnas = ['Receta','Categoría','Ingredientes','Costo total'];
+  const filas = rows.map(r=>{
+    const costo = costoReceta(r);
+    const ingrNames = r.ingredientes.map(ing=>{
+      const ins = getInsumo(ing.insumoId);
+      return ins ? `${ins.nombre} (${ing.cantidad}${ins.unidad==='Unidad'?'u':ins.unidad.toLowerCase()})` : 'insumo eliminado';
+    }).join(', ');
+    return [r.nombre, r.categoria||'-', ingrNames||'sin ingredientes', fmt(costo)];
+  });
+  generarPDFTabla({
+    titulo: 'Recetas',
+    subtitulo: (categoria?`Categoría: ${categoria} — `:'') + `${rows.length} receta(s)`,
+    columnas, filas,
+  });
+}
+function exportarPDFMenu(){
+  const rows = data.menu.slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+  const columnas = ['Producto','Categoría','Receta','Precio venta','Costo','Food cost %','Margen $','Margen %','Estado'];
+  const filas = rows.map(m=>{
+    const c = menuComputed(m);
+    return [m.nombre, m.categoria||'-', c.receta?c.receta.nombre:'sin receta', fmt(c.precio), fmt(c.costo), c.foodCostPct===null?'-':fmtPct(c.foodCostPct), fmt(c.margenARS), c.margenPct===null?'-':fmtPct(c.margenPct), c.estado.label];
+  });
+  generarPDFTabla({
+    titulo: 'Menú',
+    subtitulo: `${rows.length} producto(s)`,
+    columnas, filas,
+  });
+}
+function exportarPDFPrecios(mesDesde, mesHasta, insumoNombre){
+  const rows = data.precioHistorico
+    .filter(p=> p.mes && p.mes>=mesDesde && p.mes<=mesHasta)
+    .filter(p=> !insumoNombre || p.insumoNombre===insumoNombre)
+    .slice().sort((a,b)=> (a.mes||'').localeCompare(b.mes||'') || a.insumoNombre.localeCompare(b.insumoNombre));
+  const columnas = ['Mes','Insumo','Proveedor','Precio'];
+  const filas = rows.map(p=> [fmtMes(p.mes), p.insumoNombre, p.proveedorNombre||'-', fmt(p.precio)]);
+  generarPDFTabla({
+    titulo: 'Progresión de precios',
+    subtitulo: (insumoNombre?`Insumo: ${insumoNombre} — `:'') + `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')} — ${rows.length} registro(s)`,
+    columnas, filas,
+  });
+}
+function exportarPDFFamilias(){
+  const rows = data.familias.slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+  const columnas = ['Nombre','Tipo de gasto'];
+  const filas = rows.map(f=> [f.nombre, f.tipoGasto||'-']);
+  generarPDFTabla({ titulo: 'Familias', subtitulo: `${rows.length} familia(s)`, columnas, filas });
+}
+function exportarPDFProveedores(){
+  const rows = data.proveedores.slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+  const columnas = ['Nombre','Familia','Tipo de gasto'];
+  const filas = rows.map(p=> [p.nombre, p.familiaId?familiaNombrePorId(p.familiaId):'-', p.tipoGastoDefault||'-']);
+  generarPDFTabla({ titulo: 'Proveedores', subtitulo: `${rows.length} proveedor(es)`, columnas, filas });
+}
+function exportarPDFUsuarios(){
+  const rows = (usuariosData||[]).slice().sort((a,b)=> (a.email||'').localeCompare(b.email||''));
+  const proyectoNombre = id => { const p=(proyectosDisponibles||[]).find(x=>x.id===id); return p ? p.nombre : null; };
+  const columnas = ['Email','Establecimiento asignado','Admin'];
+  const filas = rows.map(u=> [u.email||'-', proyectoNombre(u.proyecto_id)||'Sin asignar', u.is_admin ? 'Sí' : 'No']);
+  generarPDFTabla({ titulo: 'Usuarios', subtitulo: `${rows.length} usuario(s)`, columnas, filas });
+}
+function exportarPDFLog(desde, hasta){
+  const rows = (logRowsCache||[])
+    .filter(r=> r.fecha && r.fecha.slice(0,10)>=desde && r.fecha.slice(0,10)<=hasta)
+    .slice().sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const columnas = ['Fecha y hora','Usuario','Detalle'];
+  const filas = rows.map(r=> [fmtFechaHora(r.fecha), r.usuario, r.detalle]);
+  generarPDFTabla({
+    titulo: 'Log de actividad',
+    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} movimiento(s)`,
+    columnas, filas,
+  });
+}
+function exportarPDFResumen(){
+  const ventasPorMes = eerrVentasPorMes();
+  const gastosPorMes = eerrGastosPorMes();
+  const allMeses = [...new Set([...Object.keys(ventasPorMes), ...Object.keys(gastosPorMes)])].sort();
+  const totalIngresosIdx = EERR_STRUCTURE.findIndex(r=>r.key==='totalIngresos');
+  const totalEgresosIdx = EERR_STRUCTURE.findIndex(r=>r.key==='totalEgresos1');
+  const resultadoIdx = EERR_STRUCTURE.findIndex(r=>r.key==='resultadoNeto1');
+  function resumenDeMes(key){
+    if(!key) return null;
+    const rowVals = calcularEerrMes(ventasPorMes[key], gastosPorMes[key]);
+    return { ingresos: rowVals[totalIngresosIdx]||0, egresos: rowVals[totalEgresosIdx]||0, resultado: rowVals[resultadoIdx]||0 };
+  }
+  const now = new Date();
+  const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const mesActualKey = allMeses.includes(currentMonthKey) ? currentMonthKey : (allMeses[allMeses.length-1] || null);
+  const idxActual = allMeses.indexOf(mesActualKey);
+  const mesAnteriorKey = idxActual > 0 ? allMeses[idxActual-1] : null;
+  const rActual = resumenDeMes(mesActualKey);
+  const rAnterior = resumenDeMes(mesAnteriorKey);
+  const alertas = data.menu.map(m=>({m, c:menuComputed(m)})).filter(x=>x.c.estado.cls!=='ok');
+  const columnas = ['Indicador', mesActualKey?fmtMes(mesActualKey+'-01'):'Mes actual', mesAnteriorKey?fmtMes(mesAnteriorKey+'-01'):'Mes anterior'];
+  const filas = [
+    ['Ventas totales', rActual?fmt(rActual.ingresos):'-', rAnterior?fmt(rAnterior.ingresos):'-'],
+    ['Egresos totales', rActual?fmt(rActual.egresos):'-', rAnterior?fmt(rAnterior.egresos):'-'],
+    ['Resultado neto', rActual?fmt(rActual.resultado):'-', rAnterior?fmt(rAnterior.resultado):'-'],
+    ['Insumos cargados', String(data.insumos.length), ''],
+    ['Recetas cargadas', String(data.recetas.length), ''],
+    ['Productos en el menú', String(data.menu.length), ''],
+    ['Productos con alerta', String(alertas.length), ''],
+  ];
+  generarPDFTabla({
+    titulo: 'Resumen',
+    subtitulo: 'Snapshot al ' + new Date().toLocaleDateString('es-AR'),
+    columnas, filas,
+  });
+}
 
 /* ---------- Costos laborales ---------- */
 let filtroCostosLaboralesFamiliaVal = '';
@@ -3287,6 +3601,7 @@ function logDescripcion(entry){
       return `${accion} un registro en ${entry.tabla}`;
   }
 }
+let logRowsCache = [];
 async function renderLog(){
   const tbody = document.getElementById('tblLog');
   if(!tbody || !currentProyecto) return;
@@ -3302,6 +3617,7 @@ async function renderLog(){
     elimRows = (d||[]).map(e=>({ fecha:e.creado_en, usuario:e.eliminado_por || 'Usuario desconocido', detalle:`eliminó la caja diaria del ${fmtDate(e.fecha_venta)} — Motivo: ${e.motivo||'-'}` }));
   }catch(e){ console.error('renderLog caja_eliminaciones', e); }
   const rows = logRows.concat(elimRows).sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+  logRowsCache = rows;
   document.getElementById('countLog').textContent = rows.length;
   if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyLog').style.display='block'; return; }
   document.getElementById('emptyLog').style.display='none';
