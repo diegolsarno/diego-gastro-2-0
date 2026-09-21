@@ -24,6 +24,8 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root, [data-theme="dark"]{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
@@ -642,7 +644,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2>Ventas diarias <span class="badge-count" id="countVentas">0</span></h2>
-        <div class="filters"><select id="filtroVentasMes"></select> <button class="btn" id="btnAddCajaDiaria">+ Agregar caja diaria</button> </div>
+        <div class="filters"><select id="filtroVentasMes"></select> <button class="btn secondary small" onclick="abrirExportarPDF('ventas')">Exportar PDF</button> <button class="btn" id="btnAddCajaDiaria">+ Agregar caja diaria</button> </div>
       </div>
       <div class="table-scroll">
       <table>
@@ -697,6 +699,7 @@
               </span>
               <span class="hint" style="margin:0;">Saldo actual</span>
               <b id="egresosSaldoActual">$0,00</b>
+              <button class="btn secondary small" onclick="abrirExportarPDF('egresos')">Exportar PDF</button>
             </div>
           </div>
           <div class="table-scroll">
@@ -749,6 +752,7 @@
         <h2>Gastos <span class="badge-count" id="countGastos">0</span></h2>
         <div class="filters">
           <select id="filtroGastosMes"></select> <select id="filtroGastosFamilia"><option value="">Todas las familias</option></select>
+          <button class="btn secondary small" onclick="abrirExportarPDF('gastos')">Exportar PDF</button>
           <button class="btn" id="btnAddGasto">+ Agregar</button>
         </div>
       </div>
@@ -856,6 +860,7 @@
         <h2>Estado de resultados (EERR) — detalle mensual</h2>
         <div class="filters">
           <button class="btn secondary small" id="btnToggleEerrMeses" style="display:none;">Ver meses anteriores</button>
+          <button class="btn secondary small" onclick="abrirExportarPDF('eerr')">Exportar PDF</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -1003,6 +1008,34 @@
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalMenu')">Cancelar</button>
       <button class="btn" onclick="saveMenu()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EXPORTAR PDF -->
+<div class="overlay" id="modalExportarPDF">
+  <div class="modal">
+    <h3 id="exportarPDFTitulo">Exportar PDF</h3>
+    <div class="row2" id="exportarPDFCamposFecha">
+      <div class="field"><label>Desde</label><input type="date" id="exportarPDFDesde"></div>
+      <div class="field"><label>Hasta</label><input type="date" id="exportarPDFHasta"></div>
+    </div>
+    <div class="row2" id="exportarPDFCamposMes" style="display:none;">
+      <div class="field"><label>Mes desde</label><input type="month" id="exportarPDFMesDesde"></div>
+      <div class="field"><label>Mes hasta</label><input type="month" id="exportarPDFMesHasta"></div>
+    </div>
+    <div class="field" id="exportarPDFCamposCuenta" style="display:none;">
+      <label>Cuenta</label>
+      <select id="exportarPDFCuenta">
+        <option value="Efectivo">Efectivo</option>
+        <option value="Transferencia">Transferencia</option>
+        <option value="Banco">Banco (E-check)</option>
+        <option value="MP">Mercado Pago</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalExportarPDF')">Cancelar</button>
+      <button class="btn" id="btnConfirmarExportarPDF">Generar PDF</button>
     </div>
   </div>
 </div>
@@ -1654,6 +1687,84 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ---------- Exportar reportes a PDF ---------- */
+let exportarPDFContexto = null;
+function abrirExportarPDF(contexto){
+  exportarPDFContexto = contexto;
+  const esMes = contexto==='eerr';
+  const esCuenta = contexto==='egresos';
+  document.getElementById('exportarPDFCamposFecha').style.display = esMes ? 'none' : 'grid';
+  document.getElementById('exportarPDFCamposMes').style.display = esMes ? 'grid' : 'none';
+  document.getElementById('exportarPDFCamposCuenta').style.display = esCuenta ? 'block' : 'none';
+  const titulos = {gastos:'Exportar Gastos a PDF', egresos:'Exportar Egresos a PDF', ventas:'Exportar Ventas diarias a PDF', eerr:'Exportar EERR a PDF'};
+  document.getElementById('exportarPDFTitulo').textContent = titulos[contexto] || 'Exportar PDF';
+  const hoy = new Date();
+  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0,10);
+  const hoyStr = hoy.toISOString().slice(0,10);
+  if(!esMes){
+    document.getElementById('exportarPDFDesde').value = primerDiaMes;
+    document.getElementById('exportarPDFHasta').value = hoyStr;
+  }else{
+    const mesActual = hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+    document.getElementById('exportarPDFMesDesde').value = mesActual;
+    document.getElementById('exportarPDFMesHasta').value = mesActual;
+  }
+  if(esCuenta){
+    document.getElementById('exportarPDFCuenta').value = filtroEgresosCuenta;
+  }
+  openModal('modalExportarPDF');
+}
+function generarPDFTabla({titulo, subtitulo, columnas, filas, totalesFila}){
+  const { jsPDF } = window.jspdf;
+  const orientation = columnas.length > 6 ? 'landscape' : 'portrait';
+  const doc = new jsPDF({orientation, unit:'pt'});
+  const nombreProyecto = (currentProyecto && currentProyecto.nombre) || 'Establecimiento';
+  doc.setFontSize(14);
+  doc.text(nombreProyecto, 40, 40);
+  doc.setFontSize(11);
+  doc.text(titulo, 40, 58);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(subtitulo || '', 40, 72);
+  doc.text('Generado: ' + new Date().toLocaleString('es-AR'), 40, 84);
+  doc.setTextColor(0);
+  doc.autoTable({
+    startY: 96,
+    head: [columnas],
+    body: filas,
+    foot: totalesFila ? [totalesFila] : undefined,
+    styles: {fontSize: 8, cellPadding:3},
+    headStyles: {fillColor:[79,140,255]},
+    footStyles: {fillColor:[230,230,230], textColor:20, fontStyle:'bold'},
+  });
+  const filename = titulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+  doc.save(filename);
+}
+document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=>{
+  const contexto = exportarPDFContexto;
+  try{
+    if(contexto==='eerr'){
+      const mesDesde = document.getElementById('exportarPDFMesDesde').value;
+      const mesHasta = document.getElementById('exportarPDFMesHasta').value;
+      if(!mesDesde || !mesHasta){ alert('Elegí el rango de meses.'); return; }
+      if(mesDesde > mesHasta){ alert('El mes "desde" no puede ser posterior al mes "hasta".'); return; }
+      exportarPDFEerr(mesDesde, mesHasta);
+    }else{
+      const desde = document.getElementById('exportarPDFDesde').value;
+      const hasta = document.getElementById('exportarPDFHasta').value;
+      if(!desde || !hasta){ alert('Elegí el rango de fechas.'); return; }
+      if(desde > hasta){ alert('La fecha "desde" no puede ser posterior a "hasta".'); return; }
+      if(contexto==='gastos') exportarPDFGastos(desde, hasta);
+      else if(contexto==='ventas') exportarPDFVentas(desde, hasta);
+      else if(contexto==='egresos'){
+        const cuenta = document.getElementById('exportarPDFCuenta').value;
+        exportarPDFEgresos(desde, hasta, cuenta);
+      }
+    }
+    closeModal('modalExportarPDF');
+  }catch(e){ alert('Error generando el PDF: ' + e.message); }
+});
+
 /* ---------- Navegación de 2 niveles: secciones + sub-tabs ---------- */
 const SECTION_DEFAULTS = {
   costo: 'resumen',
@@ -2202,6 +2313,26 @@ document.getElementById('filtroCajaCuenta').addEventListener('change', e=>{
   filtroCajaCuentaVal = e.target.value; renderVentasCaja();
 }); document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
 
+function exportarPDFVentas(desde, hasta){
+  const rows = data.ventasDiarias.filter(v=> v.fecha>=desde && v.fecha<=hasta).sort((a,b)=> a.fecha.localeCompare(b.fecha));
+  const columnas = ['Fecha','Restaurante','Kiosco','Chiringo','Viandas','3ros Tiempos','Parrilla','Total día'];
+  let totRest=0, totKio=0, totChi=0, totVia=0, tot3=0, totPar=0, totDia=0;
+  const filas = rows.map(v=>{
+    const kioscoTotal = v.kioscoEfectivo+v.kioscoBco+v.kioscoMp;
+    const chiringoTotal = (v.chiringoEfectivo||0)+(v.chiringoMp||0);
+    const parrillaTotal = v.parrillaEfectivo+v.parrillaMp;
+    const totalDia = v.total + kioscoTotal + chiringoTotal + v.viandasTotal + v.terceirosTotal + parrillaTotal;
+    totRest+=v.total; totKio+=kioscoTotal; totChi+=chiringoTotal; totVia+=v.viandasTotal; tot3+=v.terceirosTotal; totPar+=parrillaTotal; totDia+=totalDia;
+    return [fmtDate(v.fecha), fmt(v.total), fmt(kioscoTotal), fmt(chiringoTotal), fmt(v.viandasTotal), fmt(v.terceirosTotal), fmt(parrillaTotal), fmt(totalDia)];
+  });
+  generarPDFTabla({
+    titulo: 'Ventas diarias',
+    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} día(s) cargado(s)`,
+    columnas, filas,
+    totalesFila: ['Total', fmt(totRest), fmt(totKio), fmt(totChi), fmt(totVia), fmt(tot3), fmt(totPar), fmt(totDia)],
+  });
+}
+
 /* ---------- Eliminar caja diaria (con motivo obligatorio) ---------- */
 let cajaAEliminarId = null;
 function abrirModalEliminarCaja(id){
@@ -2423,6 +2554,22 @@ function renderGastos(){
 document.getElementById('filtroGastosFamilia').addEventListener('change', e=>{
   filtroGastosFamiliaVal = e.target.value; renderGastos();
 }); document.getElementById('filtroGastosMes').addEventListener('change', e=>{ filtroGastosMesVal = e.target.value; renderGastos(); });
+
+function exportarPDFGastos(desde, hasta){
+  const rows = data.gastos
+    .filter(g=> !esFamiliaCostoLaboral(g.familiaNombre))
+    .filter(g=>{ const f = g.fechaFc||g.fechaCarga; return f && f>=desde && f<=hasta; })
+    .sort((a,b)=> (a.fechaFc||a.fechaCarga||'').localeCompare(b.fechaFc||b.fechaCarga||''));
+  const columnas = ['Fecha','Proveedor','Familia','Tipo de gasto','Comprobante','N°','Total'];
+  const filas = rows.map(g=> [fmtDate(g.fechaFc||g.fechaCarga), g.proveedorNombre||'-', g.familiaNombre||'-', g.tipoGasto||'-', g.tipoComprobante||'-', g.nComprobante||'-', fmt(g.total)]);
+  const total = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
+  generarPDFTabla({
+    titulo: 'Gastos',
+    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} comprobante(s)`,
+    columnas, filas,
+    totalesFila: ['','','','','','Total', fmt(total)],
+  });
+}
 
 /* ---------- Costos laborales ---------- */
 let filtroCostosLaboralesFamiliaVal = '';
@@ -2852,6 +2999,33 @@ document.getElementById('btnToggleEerrMeses').addEventListener('click', ()=>{
   eerrMostrarTodosMeses = !eerrMostrarTodosMeses;
   renderEerr();
 });
+function exportarPDFEerr(mesDesde, mesHasta){
+  const ventasPorMes = eerrVentasPorMes();
+  const gastosPorMes = eerrGastosPorMes();
+  const meses = [];
+  let cur = mesDesde;
+  let guard = 0;
+  while(cur <= mesHasta && guard < 120){
+    meses.push(cur);
+    const [y,m] = cur.split('-').map(Number);
+    const next = new Date(y, m, 1);
+    cur = next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0');
+    guard++;
+  }
+  const valsPorMes = meses.map(k=> calcularEerrMes(ventasPorMes[k], gastosPorMes[k]));
+  const columnas = ['Detalle', ...meses.map(k=> fmtMes(k+'-01'))];
+  const filas = [];
+  EERR_STRUCTURE.forEach((row,i)=>{
+    if(row.t==='blank') return;
+    const indent = row.lvl ? '  '.repeat(row.lvl) : '';
+    filas.push([indent + row.label, ...valsPorMes.map(vals=> fmt(vals[i]||0))]);
+  });
+  generarPDFTabla({
+    titulo: 'Estado de resultados (EERR)',
+    subtitulo: `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')}`,
+    columnas, filas,
+  });
+}
 
 /* ---------- Familias ---------- */
 function fillFamiliaDatalist(){
@@ -3295,6 +3469,25 @@ document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
     document.getElementById('filtroEgresosCuenta')?.addEventListener('change', e=>{
       filtroEgresosCuenta = e.target.value; renderEgresos();
     });
+    function exportarPDFEgresos(desde, hasta, cuenta){
+      const todasCuenta = data.gastos.filter(g=> g.formaPago && cuentaEgresoDeFormaPago(g.formaPago)===cuenta);
+      const rows = todasCuenta
+        .filter(g=> g.formaPagoFecha && g.formaPagoFecha>=desde && g.formaPagoFecha<=hasta)
+        .sort((a,b)=> (a.formaPagoFecha||'').localeCompare(b.formaPagoFecha||''));
+      const columnas = ['Fecha','Proveedor','Monto'];
+      const filas = rows.map(g=> [fmtDate(g.formaPagoFecha), g.proveedorNombre||'Sin proveedor', fmt(g.total)]);
+      const totalPeriodo = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
+      const saldoInicialManual = (data.egresosSaldosIniciales && data.egresosSaldosIniciales[cuenta]) || 0;
+      const ingresos = totalIngresosCuentaEgresos(cuenta);
+      const totalGastosCuenta = todasCuenta.reduce((s,g)=> s + (Number(g.total)||0), 0);
+      const saldoActual = saldoInicialManual + ingresos - totalGastosCuenta;
+      generarPDFTabla({
+        titulo: `Egresos - ${cuenta}`,
+        subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} pago(s) — Total del período: ${fmt(totalPeriodo)} — Saldo actual de la cuenta: ${fmt(saldoActual)}`,
+        columnas, filas,
+        totalesFila: ['', 'Total período', fmt(totalPeriodo)],
+      });
+    }
     document.getElementById('btnGuardarSaldoEgresos')?.addEventListener('click', guardarSaldoInicialEgresos);
     function editGasto(id){
   const g = data.gastos.find(x=>x.id===id);
