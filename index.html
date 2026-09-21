@@ -169,6 +169,11 @@
   tr.row-warn{background:rgba(241,196,15,.10);}
   tr.row-orange{background:rgba(230,126,34,.10);}
   tr.row-neg{color:var(--red);}
+  tr.row-highlight{animation:rowHighlightFlash 2s ease-out;}
+  @keyframes rowHighlightFlash{
+    0%{background:rgba(241,196,15,.35);}
+    100%{background:transparent;}
+  }
   .pill{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;}
   .pill.ok{background:rgba(46,204,113,.15); color:var(--green);}
   .pill.error{background:rgba(231,76,60,.18); color:var(--red);}
@@ -315,7 +320,12 @@
   .cal-pagos-day{background:var(--panel); min-height:92px; padding:6px; font-size:11.5px; vertical-align:top;}
   .cal-pagos-day.other-month{background:var(--bg); opacity:.45;}
   .cal-pagos-daynum{font-weight:700; font-size:12px; margin-bottom:4px; color:var(--muted);}
-  .cal-pagos-item{background:var(--panel2); border-radius:5px; padding:3px 6px; margin-bottom:3px; font-size:11px; line-height:1.35;}
+  .cal-pagos-item{background:var(--panel2); border-radius:5px; padding:3px 6px 3px 8px; margin-bottom:3px; font-size:11px; line-height:1.35; cursor:pointer; border-left:3px solid transparent;}
+  .cal-pagos-item:hover{filter:brightness(0.93);}
+  .cal-pagos-item.pago-pend{border-left-color:var(--red);}
+  .cal-pagos-item.pago-pend b{color:var(--red);}
+  .cal-pagos-item.pago-ok{border-left-color:var(--green);}
+  .cal-pagos-item.pago-ok b{color:var(--green);}
   .cal-pagos-item b{display:block; font-size:11px;}
   @media (max-width:720px){
     .cal-pagos-day{min-height:60px; font-size:10px; padding:4px;}
@@ -1927,7 +1937,7 @@ function showView(view){
       }
       for(let dia=1; dia<=diasEnMes; dia++){
         const items = porDia[dia] || [];
-        const itemsHtml = items.map(g=>'<div class="cal-pagos-item"><b>'+escapeHtml(g.proveedorNombre||'-')+'</b>'+fmt(g.total)+'</div>').join('');
+        const itemsHtml = items.map(g=>'<div class="cal-pagos-item '+(g.formaPago?'pago-ok':'pago-pend')+'" onclick="irAGastoDesdeCalendario(\''+g.id+'\')" title="'+(g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago')+'"><b>'+escapeHtml(g.proveedorNombre||'-')+'</b>'+fmt(g.total)+'</div>').join('');
         html += '<div class="cal-pagos-day"><div class="cal-pagos-daynum">'+dia+'</div>'+itemsHtml+'</div>';
       }
       const totalCells = primerDiaSemana + diasEnMes;
@@ -2613,7 +2623,7 @@ function renderGastos(){
   if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyGastos').style.display='block'; return; }
   document.getElementById('emptyGastos').style.display='none';
   const sorted = rows.slice().sort((a,b)=> (b.fechaFc||b.fechaCarga||'').localeCompare(a.fechaFc||a.fechaCarga||''));
-  tbody.innerHTML = sorted.map(g=>`<tr class="${g.total<0?'row-neg':''}">
+  tbody.innerHTML = sorted.map(g=>`<tr data-gasto-id="${g.id}" class="${g.total<0?'row-neg':''}">
     <td>${fmtDate(g.fechaFc||g.fechaCarga)}</td><td>${escapeHtml(g.proveedorNombre)}</td>
     <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
@@ -2628,6 +2638,33 @@ function renderGastos(){
 document.getElementById('filtroGastosFamilia').addEventListener('change', e=>{
   filtroGastosFamiliaVal = e.target.value; renderGastos();
 }); document.getElementById('filtroGastosMes').addEventListener('change', e=>{ filtroGastosMesVal = e.target.value; renderGastos(); });
+function irAGastoDesdeCalendario(gastoId){
+  const g = data.gastos.find(x=>x.id===gastoId);
+  if(!g) return;
+  if(esFamiliaCostoLaboral(g.familiaNombre)){
+    alert('Este comprobante está cargado como costo laboral. Buscalo en la pestaña "Costos laborales".');
+    return;
+  }
+  filtroGastosFamiliaVal = '';
+  const mk = monthKey(g.fechaFc||g.fechaCarga);
+  if(mk) filtroGastosMesVal = mk;
+  renderGastos();
+  const subnav = document.getElementById('subnav-administracion');
+  if(subnav){
+    subnav.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    const btn = subnav.querySelector('button[data-view="gastos"]');
+    if(btn) btn.classList.add('active');
+  }
+  showView('gastos');
+  setTimeout(()=>{
+    const row = document.querySelector(`tr[data-gasto-id="${gastoId}"]`);
+    if(row){
+      row.scrollIntoView({behavior:'smooth', block:'center'});
+      row.classList.add('row-highlight');
+      setTimeout(()=> row.classList.remove('row-highlight'), 2000);
+    }
+  }, 50);
+}
 
 function exportarPDFGastos(desde, hasta){
   const rows = data.gastos
