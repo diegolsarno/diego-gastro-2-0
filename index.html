@@ -3347,13 +3347,14 @@ function renderEerr(){
     toggleBtn.textContent = eerrMostrarTodosMeses ? 'Ocultar meses anteriores' : 'Ver meses anteriores';
     if(!eerrMostrarTodosMeses){
       const mesActual = allMeses.includes(currentMonthKey) ? currentMonthKey : allMeses[allMeses.length-1];
-      // Además del mes actual, mostramos el mes anterior (si hay datos) en un
-      // tono ghost/apagado a la derecha, para que el mes actual siga siendo
-      // el protagonista visual pero se pueda comparar contra el anterior.
-      const [ay, am] = mesActual.split('-').map(Number);
-      const prevDate = new Date(ay, am-2, 1);
-      const mesAnteriorKey = prevDate.getFullYear() + '-' + String(prevDate.getMonth()+1).padStart(2,'0');
-      if(allMeses.includes(mesAnteriorKey)){
+      // Además del mes actual, mostramos el último mes con datos anterior al
+      // actual (no necesariamente el mes calendario inmediato anterior, ya
+      // que puede haber meses sin carga) en un tono ghost/apagado a la
+      // derecha, para que el mes actual siga siendo el protagonista visual
+      // pero se pueda comparar contra el anterior.
+      const idxActual = allMeses.indexOf(mesActual);
+      const mesAnteriorKey = idxActual > 0 ? allMeses[idxActual-1] : null;
+      if(mesAnteriorKey){
         meses = [mesActual, mesAnteriorKey];
         ghostCols.add(1);
       } else {
