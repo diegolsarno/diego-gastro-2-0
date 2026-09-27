@@ -315,6 +315,7 @@
   .eerr-cell-pos{color:var(--green);}
   .eerr-cell-neg{color:var(--red);}
   .eerr-pct{display:block; font-size:10px; font-weight:inherit; color:var(--muted); margin-top:1px;}
+  .eerr-col-ghost{opacity:0.45;}
 
   .cal-pagos-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--border); padding:1px; border-radius:8px; overflow:hidden;}
   .cal-pagos-daylabel{background:var(--panel2); color:var(--muted); font-size:11px; font-weight:700; text-align:center; padding:6px 0; text-transform:uppercase;}
@@ -3340,18 +3341,30 @@ function renderEerr(){
   const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
 
   let meses = allMeses;
+  let ghostCols = new Set();
   if(allMeses.length > 1){
     toggleBtn.style.display = 'inline-block';
     toggleBtn.textContent = eerrMostrarTodosMeses ? 'Ocultar meses anteriores' : 'Ver meses anteriores';
     if(!eerrMostrarTodosMeses){
       const mesActual = allMeses.includes(currentMonthKey) ? currentMonthKey : allMeses[allMeses.length-1];
-      meses = [mesActual];
+      // Además del mes actual, mostramos el mes anterior (si hay datos) en un
+      // tono ghost/apagado a la derecha, para que el mes actual siga siendo
+      // el protagonista visual pero se pueda comparar contra el anterior.
+      const [ay, am] = mesActual.split('-').map(Number);
+      const prevDate = new Date(ay, am-2, 1);
+      const mesAnteriorKey = prevDate.getFullYear() + '-' + String(prevDate.getMonth()+1).padStart(2,'0');
+      if(allMeses.includes(mesAnteriorKey)){
+        meses = [mesActual, mesAnteriorKey];
+        ghostCols.add(1);
+      } else {
+        meses = [mesActual];
+      }
     }
   } else {
     toggleBtn.style.display = 'none';
   }
 
-  thead.innerHTML = `<tr><th>Detalle</th>${meses.map(k=>`<th>${fmtMes(k+'-01')}</th>`).join('')}</tr>`;
+  thead.innerHTML = `<tr><th>Detalle</th>${meses.map((k,idx)=>`<th${ghostCols.has(idx)?' class="eerr-col-ghost"':''}>${fmtMes(k+'-01')}</th>`).join('')}</tr>`;
 
   const valsPorMes = meses.map(k=> calcularEerrMes(ventasPorMes[k], gastosPorMes[k]));
 
@@ -3380,11 +3393,14 @@ function renderEerr(){
     let rowClass = `eerr-row-${row.t}`;
     if(row.key && EERR_HIGHLIGHT[row.key]) rowClass += ' ' + EERR_HIGHLIGHT[row.key];
     const signed = row.key && EERR_SIGNED.has(row.key);
-    const cells = valsPorMes.map(vals=>{
+    const cells = valsPorMes.map((vals, colIdx)=>{
       const v = vals[i]||0;
       const totalIng = vals[totalIngresosIdx]||0;
       const pct = totalIng ? (v/totalIng*100) : 0;
-      const cellCls = signed ? (v<0?' class="eerr-cell-neg"':' class="eerr-cell-pos"') : '';
+      const classes = [];
+      if(signed) classes.push(v<0 ? 'eerr-cell-neg' : 'eerr-cell-pos');
+      if(ghostCols.has(colIdx)) classes.push('eerr-col-ghost');
+      const cellCls = classes.length ? ` class="${classes.join(' ')}"` : '';
       return `<td${cellCls}>${fmt(v)}<span class="eerr-pct">${pct.toFixed(1)}%</span></td>`;
     }).join('');
     return `<tr class="${rowClass} ${lvlClass}"><td>${escapeHtml(row.label)}</td>${cells}</tr>`;
