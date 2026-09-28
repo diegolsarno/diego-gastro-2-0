@@ -511,6 +511,10 @@
       <div class="home-tile-icon">⚙️</div>
       <div class="home-tile-label">Parámetros</div>
     </button>
+    <button class="home-tile" data-section="rrhh">
+      <div class="home-tile-icon">🧑‍💼</div>
+      <div class="home-tile-label">RRHH</div>
+    </button>
   </div>
 </div>
 
@@ -524,6 +528,7 @@
   <button data-section="costo" class="active">Costo</button>
   <button data-section="administracion">Administración</button>
   <button data-section="parametros">Parámetros</button>
+  <button data-section="rrhh">RRHH</button>
 </nav>
 
 <nav class="subnav active" id="subnav-costo">
@@ -537,7 +542,6 @@
   <button data-view="ventas" class="active">Ventas y Caja</button>
   <button data-view="totales">Total venta</button>
   <button data-view="gastos">Gastos</button> <button data-view="egresos">Egresos</button> <button data-view="calendariopagos">Calendario de pagos</button>
-  <button data-view="costoslaborales">Costos laborales</button>
   <button data-view="totalesgastos">Totales gastos</button>
   <button data-view="eerr">EERR</button>
 </nav>
@@ -546,6 +550,9 @@
   <button data-view="proveedores">Proveedores</button>
   <button data-view="usuarios" id="navUsuarios" class="app-hidden">Usuarios</button>
   <button data-view="log">Log</button>
+</nav>
+<nav class="subnav" id="subnav-rrhh">
+  <button data-view="costoslaborales" class="active">Costos laborales</button>
 </nav>
 
 <main>
@@ -1901,6 +1908,7 @@ const SECTION_DEFAULTS = {
   costo: 'resumen',
   administracion: 'ventas',
   parametros: 'familias',
+  rrhh: 'costoslaborales',
 };
 function activateSection(section){
   document.querySelectorAll('#mainNav button').forEach(b=>b.classList.toggle('active', b.dataset.section===section));
