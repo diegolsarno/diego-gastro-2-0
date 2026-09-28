@@ -553,6 +553,11 @@
 </nav>
 <nav class="subnav" id="subnav-rrhh">
   <button data-view="costoslaborales" class="active">Costos laborales</button>
+  <button data-view="rrhhpersonal">Personal</button>
+  <button data-view="rrhhnovedades">Novedades del mes</button>
+  <button data-view="rrhhliquidacion">Liquidación mensual</button>
+  <button data-view="rrhhaumentos">Aumentos</button>
+  <button data-view="rrhhliqfinales">Liquidaciones finales</button>
 </nav>
 
 <main>
@@ -832,6 +837,116 @@
         </div>
       </div>
       <div class="empty" id="emptyCostosLaboralesPie" style="display:none;">Todavía no hay costos laborales con un sector asignado.</div>
+    </div>
+  </div>
+
+  <!-- ========== RRHH: Personal ========== -->
+  <div class="view" id="view-rrhhpersonal">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Personal <span class="badge-count" id="countRrhhPersonal">0</span></h2>
+        <div class="filters">
+          <select id="filtroRrhhPersonalEstado">
+            <option value="activos">Activos</option>
+            <option value="bajas">Bajas</option>
+          </select>
+          <button class="btn" id="btnAddEmpleado">+ Agregar</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Apellido</th><th>Nombre</th><th>Fecha ingreso</th><th>Puesto</th><th>Sueldo</th><th>CUIL</th><th>Celular</th><th>CBU</th><th>Fecha baja</th><th>Telegrama</th><th>Liq. final</th><th></th>
+        </tr></thead>
+        <tbody id="tblRrhhPersonal"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyRrhhPersonal" style="display:none;">Todavía no cargaste personal.</div>
+    </div>
+  </div>
+
+  <!-- ========== RRHH: Novedades del mes ========== -->
+  <div class="view" id="view-rrhhnovedades">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Novedades del mes</h2>
+        <div class="filters">
+          <select id="filtroRrhhNovedadesMes"></select>
+        </div>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Apellido</th><th>Nombre</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Plus vacacional</th><th>Adelantos</th>
+        </tr></thead>
+        <tbody id="tblRrhhNovedades"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyRrhhNovedades" style="display:none;">No hay empleados activos.</div>
+    </div>
+  </div>
+
+  <!-- ========== RRHH: Liquidación mensual ========== -->
+  <div class="view" id="view-rrhhliquidacion">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Liquidación mensual</h2>
+        <div class="filters">
+          <select id="filtroRrhhLiqMes"></select>
+          <label style="display:flex; align-items:center; gap:4px; font-size:12.5px;">IPC % <input id="rrhhLiqIpc" type="number" step="0.01" style="width:70px;"></label>
+          <label style="display:flex; align-items:center; gap:4px; font-size:12.5px;">Aumento % <input id="rrhhLiqAumento" type="number" step="0.01" style="width:70px;"></label>
+          <button class="btn secondary small" id="btnGuardarParametrosMes">Guardar parámetros</button>
+          <button class="btn" id="btnCalcularLiquidacion">Calcular mes</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Apellido</th><th>Nombre</th><th>Mes anterior</th><th>IPC</th><th>Aumento</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Plus vac.</th><th>Total mes</th><th>Adelantos</th><th>Recibo</th><th>Cash</th><th>Pagado</th>
+        </tr></thead>
+        <tbody id="tblRrhhLiquidacion"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyRrhhLiquidacion" style="display:none;">No hay empleados activos.</div>
+    </div>
+  </div>
+
+  <!-- ========== RRHH: Aumentos ========== -->
+  <div class="view" id="view-rrhhaumentos">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Aumentos</h2>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Apellido</th><th>Nombre</th><th>Fecha ingreso</th><th>Sueldo de ingreso</th><th>Sueldo actual</th><th>% Incremento</th><th>IPC acumulado</th><th>Diferencia vs IPC</th>
+        </tr></thead>
+        <tbody id="tblRrhhAumentos"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyRrhhAumentos" style="display:none;">No hay empleados activos.</div>
+    </div>
+  </div>
+
+  <!-- ========== RRHH: Liquidaciones finales ========== -->
+  <div class="view" id="view-rrhhliqfinales">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Liquidaciones finales <span class="badge-count" id="countRrhhLiqFinales">0</span></h2>
+        <div class="filters">
+          <button class="btn" id="btnAddLiqFinal">+ Agregar</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Empleado</th><th>Fecha ingreso</th><th>Último sueldo</th><th>Días trab. (mes)</th><th>Días trab. (total)</th><th>SAC proporcional</th><th>Vacaciones</th><th>SAC s/Vac.</th><th>Total</th><th></th>
+        </tr></thead>
+        <tbody id="tblRrhhLiqFinales"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyRrhhLiqFinales" style="display:none;">Todavía no cargaste liquidaciones finales.</div>
     </div>
   </div>
 
@@ -1235,6 +1350,68 @@
   </div>
 </div>
 
+<div class="overlay" id="modalEmpleado">
+  <div class="modal">
+    <h3 id="modalEmpleadoTitle">Nuevo empleado</h3>
+    <input type="hidden" id="empleadoId">
+    <div class="row2">
+      <div class="field"><label>Apellido</label><input id="empleadoApellido"></div>
+      <div class="field"><label>Nombre</label><input id="empleadoNombre"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Fecha de ingreso</label><input id="empleadoFechaIngreso" type="date"></div>
+      <div class="field"><label>Puesto</label><input id="empleadoPuesto" placeholder="Ej: Cocinero/a"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Sueldo de ingreso</label><input id="empleadoSueldoIngreso" type="number" step="0.01"></div>
+      <div class="field"><label>CUIL</label><input id="empleadoCuil"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Celular</label><input id="empleadoCelular"></div>
+      <div class="field"><label>CBU</label><input id="empleadoCbu"></div>
+    </div>
+    <div class="field"><label>Antecedentes penales</label><input id="empleadoAntecedentes" placeholder="Ej: sin antecedentes"></div>
+    <div class="field"><label><input type="checkbox" id="empleadoActivo" checked onchange="toggleEmpleadoBajaFields()" style="width:auto; margin-right:6px;">Activo</label></div>
+    <div id="fieldsEmpleadoBaja" style="display:none;">
+      <div class="row2">
+        <div class="field"><label>Fecha de baja</label><input id="empleadoFechaBaja" type="date"></div>
+        <div class="field"><label>Telegrama enviado</label><select id="empleadoTelegrama"><option value="">-</option><option value="si">Sí</option><option value="no">No</option></select></div>
+      </div>
+      <div class="field"><label>Liquidación final pagada</label><select id="empleadoLiqPagada"><option value="">-</option><option value="si">Sí</option><option value="no">No</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalEmpleado')">Cancelar</button>
+      <button class="btn" onclick="saveEmpleado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modalLiqFinal">
+  <div class="modal">
+    <h3 id="modalLiqFinalTitle">Nueva liquidación final</h3>
+    <input type="hidden" id="liqFinalId">
+    <div class="field"><label>Empleado</label><select id="liqFinalEmpleado" onchange="prellenarLiqFinalDesdeEmpleado()"></select></div>
+    <div class="row2">
+      <div class="field"><label>Fecha de ingreso</label><input id="liqFinalFechaIngreso" type="date"></div>
+      <div class="field"><label>Último sueldo</label><input id="liqFinalUltimoSueldo" type="number" step="0.01"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Días trabajados (mes)</label><input id="liqFinalDiasMes" type="number" step="0.01"></div>
+      <div class="field"><label>Días trabajados (total)</label><input id="liqFinalDiasTotal" type="number" step="0.01"></div>
+    </div>
+    <div class="field"><label>Monto días trabajados</label><input id="liqFinalMontoDias" type="number" step="0.01"></div>
+    <div class="row2">
+      <div class="field"><label>SAC proporcional</label><input id="liqFinalSac" type="number" step="0.01"></div>
+      <div class="field"><label>Vacaciones</label><input id="liqFinalVacaciones" type="number" step="0.01"></div>
+    </div>
+    <div class="field"><label>SAC sobre vacaciones</label><input id="liqFinalSacVac" type="number" step="0.01"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalLiqFinal')">Cancelar</button>
+      <button class="btn" onclick="saveLiqFinal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ---------- Cliente Supabase ---------- */
 let supa = null;
@@ -1263,6 +1440,7 @@ let data = {
   proveedores:[], familias:[], precioHistorico:[],
   gastos:[], ventasDiarias:[], cajaMovimientos:[],
   egresosSaldosIniciales:{},
+  empleados:[], rrhhParametrosMes:[], rrhhEventuales:[], rrhhLiquidaciones:[], rrhhLiquidacionesFinales:[],
 };
 let filtroEgresosCuenta = 'Efectivo';
 
@@ -1650,6 +1828,39 @@ async function loadAll(){
     data.egresosSaldosIniciales = {};
     egresosSaldosD.forEach(e=>{ data.egresosSaldosIniciales[e.cuenta] = Number(e.saldo)||0; });
 
+    /* --- RRHH --- */
+    const [empleadosD, rrhhParamsD, rrhhEventualesD, rrhhLiqD, rrhhLiqFinalesD] = await Promise.all([
+      safeQuery(supa.from('empleados').select('*').eq('proyecto_id', pid).order('apellido'), 'empleados'),
+      safeQuery(supa.from('rrhh_parametros_mes').select('*').eq('proyecto_id', pid).order('mes'), 'rrhh_parametros_mes'),
+      safeQuery(supa.from('rrhh_eventuales').select('*').eq('proyecto_id', pid), 'rrhh_eventuales'),
+      safeQuery(supa.from('rrhh_liquidaciones').select('*').eq('proyecto_id', pid), 'rrhh_liquidaciones'),
+      safeQuery(supa.from('rrhh_liquidaciones_finales').select('*, empleados(apellido,nombre)').eq('proyecto_id', pid).order('created_at', {ascending:false}), 'rrhh_liquidaciones_finales'),
+    ]);
+    data.empleados = empleadosD.map(e=>({
+      id:e.id, apellido:e.apellido, nombre:e.nombre, fechaIngreso:e.fecha_ingreso, puesto:e.puesto,
+      sueldoIngreso:Number(e.sueldo_ingreso)||0, cuil:e.cuil, celular:e.celular, cbu:e.cbu,
+      antecedentesPenales:e.antecedentes_penales, activo:e.activo, fechaBaja:e.fecha_baja,
+      telegrama:e.telegrama, liquidacionFinalPagada:e.liquidacion_final_pagada,
+    }));
+    data.rrhhParametrosMes = rrhhParamsD.map(p=>({id:p.id, mes:p.mes, ipcRate:Number(p.ipc_rate)||0, aumentoRate:Number(p.aumento_rate)||0}));
+    data.rrhhEventuales = rrhhEventualesD.map(v=>({
+      id:v.id, empleadoId:v.empleado_id, mes:v.mes, horasExtra:Number(v.horas_extra)||0, feriados:Number(v.feriados)||0,
+      ausencias:Number(v.ausencias)||0, plusVacacional:Number(v.plus_vacacional)||0, adelantos:Number(v.adelantos)||0,
+    }));
+    data.rrhhLiquidaciones = rrhhLiqD.map(l=>({
+      id:l.id, empleadoId:l.empleado_id, mes:l.mes, totalMes:Number(l.total_mes)||0, recibo:Number(l.recibo)||0,
+      cash:Number(l.cash)||0, cambioNecesario:l.cambio_necesario||'', pagado:l.pagado,
+    }));
+    data.rrhhLiquidacionesFinales = rrhhLiqFinalesD.map(f=>({
+      id:f.id, empleadoId:f.empleado_id,
+      empleadoNombre: f.empleados ? `${f.empleados.apellido}, ${f.empleados.nombre}` : '-',
+      fechaIngreso:f.fecha_ingreso, ultimoSueldo:Number(f.ultimo_sueldo)||0,
+      diasTrabajadosMes:Number(f.dias_trabajados_mes)||0, diasTrabajadosTotal:Number(f.dias_trabajados_total)||0,
+      montoDias:Number(f.monto_dias)||0, sacProporcional:Number(f.sac_proporcional)||0,
+      vacaciones:Number(f.vacaciones)||0, sacSobreVacaciones:Number(f.sac_sobre_vacaciones)||0,
+      total:Number(f.total)||0,
+    }));
+
     renderAll();
   }catch(e){
     alert('Error cargando datos de Supabase: ' + e.message + '\n\nRevisá que hayas corrido el schema.sql y que la URL/API key sean correctas.');
@@ -1990,6 +2201,11 @@ function renderAll(){
   renderCostosLaborales();
   renderTotalesGastos();
   renderEerr();
+  renderRrhhPersonal();
+  renderRrhhNovedades();
+  renderRrhhLiquidacion();
+  renderRrhhAumentos();
+  renderRrhhLiqFinales();
   if(currentProfile && currentProfile.is_admin) renderUsuarios();
   renderLog();
 }
@@ -3752,6 +3968,389 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   document.getElementById('gastoTipoPersonal').value = '';
   openModal('modalGasto');
 });
+
+/* ---------- RRHH: Personal ---------- */
+let filtroRrhhPersonalEstadoVal = 'activos';
+function renderRrhhPersonal(){
+  const rows = data.empleados.filter(e => filtroRrhhPersonalEstadoVal==='activos' ? e.activo : !e.activo);
+  document.getElementById('countRrhhPersonal').textContent = rows.length;
+  const tbody = document.getElementById('tblRrhhPersonal');
+  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhPersonal').style.display='block'; return; }
+  document.getElementById('emptyRrhhPersonal').style.display='none';
+  const sorted = rows.slice().sort((a,b)=> (a.apellido||'').localeCompare(b.apellido||''));
+  tbody.innerHTML = sorted.map(e=>`<tr>
+    <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td><td class="muted">${fmtDate(e.fechaIngreso)}</td>
+    <td class="muted">${escapeHtml(e.puesto||'-')}</td><td>${fmt(e.sueldoIngreso)}</td>
+    <td class="muted">${escapeHtml(e.cuil||'-')}</td><td class="muted">${escapeHtml(e.celular||'-')}</td><td class="muted">${escapeHtml(e.cbu||'-')}</td>
+    <td class="muted">${e.activo ? '-' : fmtDate(e.fechaBaja)}</td>
+    <td class="muted">${e.activo ? '-' : (e.telegrama===true?'Sí':(e.telegrama===false?'No':'-'))}</td>
+    <td class="muted">${e.activo ? '-' : (e.liquidacionFinalPagada?'Sí':'No')}</td>
+    <td class="actions">
+      <button class="btn secondary small" onclick="editEmpleado('${e.id}')">Editar</button>
+      <button class="btn danger small" onclick="deleteEmpleado('${e.id}')">Eliminar</button>
+    </td></tr>`).join('');
+}
+document.getElementById('filtroRrhhPersonalEstado').addEventListener('change', e=>{ filtroRrhhPersonalEstadoVal = e.target.value; renderRrhhPersonal(); });
+function toggleEmpleadoBajaFields(){
+  document.getElementById('fieldsEmpleadoBaja').style.display = document.getElementById('empleadoActivo').checked ? 'none' : 'block';
+}
+document.getElementById('btnAddEmpleado').addEventListener('click', ()=>{
+  document.getElementById('modalEmpleadoTitle').textContent = 'Nuevo empleado';
+  document.getElementById('empleadoId').value = '';
+  document.getElementById('empleadoApellido').value = '';
+  document.getElementById('empleadoNombre').value = '';
+  document.getElementById('empleadoFechaIngreso').value = '';
+  document.getElementById('empleadoPuesto').value = '';
+  document.getElementById('empleadoSueldoIngreso').value = '';
+  document.getElementById('empleadoCuil').value = '';
+  document.getElementById('empleadoCelular').value = '';
+  document.getElementById('empleadoCbu').value = '';
+  document.getElementById('empleadoAntecedentes').value = '';
+  document.getElementById('empleadoActivo').checked = true;
+  document.getElementById('empleadoFechaBaja').value = '';
+  document.getElementById('empleadoTelegrama').value = '';
+  document.getElementById('empleadoLiqPagada').value = '';
+  toggleEmpleadoBajaFields();
+  openModal('modalEmpleado');
+});
+function editEmpleado(id){
+  const e = data.empleados.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('modalEmpleadoTitle').textContent = 'Editar empleado';
+  document.getElementById('empleadoId').value = e.id;
+  document.getElementById('empleadoApellido').value = e.apellido||'';
+  document.getElementById('empleadoNombre').value = e.nombre||'';
+  document.getElementById('empleadoFechaIngreso').value = e.fechaIngreso||'';
+  document.getElementById('empleadoPuesto').value = e.puesto||'';
+  document.getElementById('empleadoSueldoIngreso').value = e.sueldoIngreso||'';
+  document.getElementById('empleadoCuil').value = e.cuil||'';
+  document.getElementById('empleadoCelular').value = e.celular||'';
+  document.getElementById('empleadoCbu').value = e.cbu||'';
+  document.getElementById('empleadoAntecedentes').value = e.antecedentesPenales||'';
+  document.getElementById('empleadoActivo').checked = !!e.activo;
+  document.getElementById('empleadoFechaBaja').value = e.fechaBaja||'';
+  document.getElementById('empleadoTelegrama').value = e.telegrama===true?'si':(e.telegrama===false?'no':'');
+  document.getElementById('empleadoLiqPagada').value = e.liquidacionFinalPagada?'si':'no';
+  toggleEmpleadoBajaFields();
+  openModal('modalEmpleado');
+}
+async function saveEmpleado(){
+  try{
+    const id = document.getElementById('empleadoId').value;
+    const activo = document.getElementById('empleadoActivo').checked;
+    const apellido = document.getElementById('empleadoApellido').value.trim();
+    const nombre = document.getElementById('empleadoNombre').value.trim();
+    if(!apellido || !nombre){ alert('Apellido y nombre son obligatorios.'); return; }
+    const payload = {
+      apellido, nombre,
+      fecha_ingreso: document.getElementById('empleadoFechaIngreso').value || null,
+      puesto: document.getElementById('empleadoPuesto').value.trim() || null,
+      sueldo_ingreso: Number(document.getElementById('empleadoSueldoIngreso').value) || 0,
+      cuil: document.getElementById('empleadoCuil').value.trim() || null,
+      celular: document.getElementById('empleadoCelular').value.trim() || null,
+      cbu: document.getElementById('empleadoCbu').value.trim() || null,
+      antecedentes_penales: document.getElementById('empleadoAntecedentes').value.trim() || null,
+      activo: activo,
+      fecha_baja: activo ? null : (document.getElementById('empleadoFechaBaja').value || null),
+      telegrama: activo ? null : (document.getElementById('empleadoTelegrama').value==='si'?true:(document.getElementById('empleadoTelegrama').value==='no'?false:null)),
+      liquidacion_final_pagada: activo ? false : (document.getElementById('empleadoLiqPagada').value==='si'),
+    };
+    if(id){
+      const {error} = await supa.from('empleados').update(payload).eq('id', id);
+      if(error) throw error;
+    }else{
+      const {error} = await supa.from('empleados').insert({...payload, proyecto_id: currentProyecto.id});
+      if(error) throw error;
+    }
+    closeModal('modalEmpleado');
+    await loadAll();
+  }catch(e){ alert('Error guardando empleado: ' + e.message); }
+}
+async function deleteEmpleado(id){
+  if(!confirm('¿Eliminar este empleado? Esta acción no se puede deshacer.')) return;
+  try{
+    const {error} = await supa.from('empleados').delete().eq('id', id);
+    if(error) throw error;
+    await loadAll();
+  }catch(e){ alert('Error eliminando empleado: ' + e.message); }
+}
+
+/* ---------- RRHH: Novedades del mes ---------- */
+function mesActualStr(){ const hoy = new Date(); return hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0'); }
+let filtroRrhhNovedadesMesVal = '';
+function renderRrhhNovedades(){
+  const mesActual = mesActualStr();
+  const mesesSet = new Set(data.rrhhEventuales.map(v=>v.mes));
+  mesesSet.add(mesActual);
+  const meses = Array.from(mesesSet).sort().reverse();
+  if(!filtroRrhhNovedadesMesVal || !meses.includes(filtroRrhhNovedadesMesVal)) filtroRrhhNovedadesMesVal = mesActual;
+  const sel = document.getElementById('filtroRrhhNovedadesMes');
+  sel.innerHTML = meses.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join('');
+  sel.value = filtroRrhhNovedadesMesVal;
+
+  const empleadosActivos = data.empleados.filter(e=>e.activo).slice().sort((a,b)=>(a.apellido||'').localeCompare(b.apellido||''));
+  const tbody = document.getElementById('tblRrhhNovedades');
+  if(empleadosActivos.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhNovedades').style.display='block'; return; }
+  document.getElementById('emptyRrhhNovedades').style.display='none';
+  tbody.innerHTML = empleadosActivos.map(e=>{
+    const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhNovedadesMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+    return `<tr>
+      <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.horasExtra||''}" placeholder="0" onchange="guardarEventual('${e.id}','horas_extra',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.feriados||''}" placeholder="0" onchange="guardarEventual('${e.id}','feriados',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.ausencias||''}" placeholder="0" onchange="guardarEventual('${e.id}','ausencias',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.plusVacacional||''}" placeholder="0" onchange="guardarEventual('${e.id}','plus_vacacional',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.adelantos||''}" placeholder="0" onchange="guardarEventual('${e.id}','adelantos',this.value)"></td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('filtroRrhhNovedadesMes').addEventListener('change', e=>{ filtroRrhhNovedadesMesVal = e.target.value; renderRrhhNovedades(); });
+async function guardarEventual(empleadoId, campo, valorStr){
+  const valor = Number(valorStr) || 0;
+  try{
+    const existing = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===filtroRrhhNovedadesMesVal);
+    if(existing){
+      const {error} = await supa.from('rrhh_eventuales').update({[campo]: valor}).eq('id', existing.id);
+      if(error) throw error;
+    }else{
+      const payload = {empleado_id:empleadoId, mes:filtroRrhhNovedadesMesVal, proyecto_id: currentProyecto.id, horas_extra:0, feriados:0, ausencias:0, plus_vacacional:0, adelantos:0};
+      payload[campo] = valor;
+      const {error} = await supa.from('rrhh_eventuales').insert(payload);
+      if(error) throw error;
+    }
+    await loadAll();
+  }catch(e){ alert('Error guardando novedad: ' + e.message); }
+}
+
+/* ---------- RRHH: Liquidación mensual ---------- */
+function totalMesAnteriorEmpleado(empleadoId, mes){
+  const previas = data.rrhhLiquidaciones.filter(l=>l.empleadoId===empleadoId && l.mes < mes).sort((a,b)=> a.mes.localeCompare(b.mes));
+  if(previas.length>0) return previas[previas.length-1].totalMes;
+  const emp = data.empleados.find(e=>e.id===empleadoId);
+  return emp ? emp.sueldoIngreso : 0;
+}
+let filtroRrhhLiqMesVal = '';
+function renderRrhhLiquidacion(){
+  const mesActual = mesActualStr();
+  const mesesSet = new Set([...data.rrhhLiquidaciones.map(l=>l.mes), ...data.rrhhParametrosMes.map(p=>p.mes)]);
+  mesesSet.add(mesActual);
+  const meses = Array.from(mesesSet).sort().reverse();
+  if(!filtroRrhhLiqMesVal || !meses.includes(filtroRrhhLiqMesVal)) filtroRrhhLiqMesVal = mesActual;
+  const sel = document.getElementById('filtroRrhhLiqMes');
+  sel.innerHTML = meses.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join('');
+  sel.value = filtroRrhhLiqMesVal;
+
+  const param = data.rrhhParametrosMes.find(p=>p.mes===filtroRrhhLiqMesVal);
+  document.getElementById('rrhhLiqIpc').value = param ? Number((param.ipcRate*100).toFixed(3)) : '';
+  document.getElementById('rrhhLiqAumento').value = param ? Number((param.aumentoRate*100).toFixed(3)) : '';
+
+  const empleadosActivos = data.empleados.filter(e=>e.activo).slice().sort((a,b)=>(a.apellido||'').localeCompare(b.apellido||''));
+  const tbody = document.getElementById('tblRrhhLiquidacion');
+  if(empleadosActivos.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhLiquidacion').style.display='block'; return; }
+  document.getElementById('emptyRrhhLiquidacion').style.display='none';
+  const ipcRate = param ? param.ipcRate : 0;
+  const aumentoRate = param ? param.aumentoRate : 0;
+  tbody.innerHTML = empleadosActivos.map(e=>{
+    const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhLiqMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+    const stored = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
+    const totalAnterior = totalMesAnteriorEmpleado(e.id, filtroRrhhLiqMesVal);
+    const ipcMonto = totalAnterior * ipcRate;
+    const aumentoMonto = totalAnterior * aumentoRate;
+    const totalMesCalc = stored ? stored.totalMes : (totalAnterior + ipcMonto + aumentoMonto + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0));
+    const recibo = stored ? stored.recibo : (totalMesCalc - (ev.adelantos||0));
+    const cash = stored ? stored.cash : Math.round(recibo);
+    return `<tr>
+      <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td>
+      <td class="muted">${fmt(totalAnterior)}</td>
+      <td class="muted">${fmt(ipcMonto)}</td>
+      <td class="muted">${fmt(aumentoMonto)}</td>
+      <td class="muted">${fmt(ev.horasExtra||0)}</td>
+      <td class="muted">${fmt(ev.feriados||0)}</td>
+      <td class="muted">${fmt(ev.ausencias||0)}</td>
+      <td class="muted">${fmt(ev.plusVacacional||0)}</td>
+      <td><b>${fmt(totalMesCalc)}</b></td>
+      <td class="muted">${fmt(ev.adelantos||0)}</td>
+      <td>${fmt(recibo)}</td>
+      <td><b>${fmt(cash)}</b></td>
+      <td>${stored ? `<input type="checkbox" ${stored.pagado?'checked':''} onchange="toggleLiquidacionPagada('${stored.id}', this.checked)">` : '<span class="muted">sin calcular</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('filtroRrhhLiqMes').addEventListener('change', e=>{ filtroRrhhLiqMesVal = e.target.value; renderRrhhLiquidacion(); });
+document.getElementById('btnGuardarParametrosMes').addEventListener('click', async ()=>{
+  try{
+    const ipcRate = (Number(document.getElementById('rrhhLiqIpc').value)||0) / 100;
+    const aumentoRate = (Number(document.getElementById('rrhhLiqAumento').value)||0) / 100;
+    const existing = data.rrhhParametrosMes.find(p=>p.mes===filtroRrhhLiqMesVal);
+    if(existing){
+      const {error} = await supa.from('rrhh_parametros_mes').update({ipc_rate:ipcRate, aumento_rate:aumentoRate}).eq('id', existing.id);
+      if(error) throw error;
+    }else{
+      const {error} = await supa.from('rrhh_parametros_mes').insert({proyecto_id:currentProyecto.id, mes:filtroRrhhLiqMesVal, ipc_rate:ipcRate, aumento_rate:aumentoRate});
+      if(error) throw error;
+    }
+    await loadAll();
+  }catch(e){ alert('Error guardando parámetros: ' + e.message); }
+});
+document.getElementById('btnCalcularLiquidacion').addEventListener('click', async ()=>{
+  try{
+    const param = data.rrhhParametrosMes.find(p=>p.mes===filtroRrhhLiqMesVal);
+    const ipcRate = param ? param.ipcRate : 0;
+    const aumentoRate = param ? param.aumentoRate : 0;
+    const empleadosActivos = data.empleados.filter(e=>e.activo);
+    for(const e of empleadosActivos){
+      const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhLiqMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+      const totalAnterior = totalMesAnteriorEmpleado(e.id, filtroRrhhLiqMesVal);
+      const totalMes = totalAnterior + totalAnterior*ipcRate + totalAnterior*aumentoRate + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0);
+      const recibo = totalMes - (ev.adelantos||0);
+      const cash = Math.round(recibo);
+      const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
+      const payload = {total_mes:totalMes, recibo:recibo, cash:cash};
+      if(existing){
+        const {error} = await supa.from('rrhh_liquidaciones').update(payload).eq('id', existing.id);
+        if(error) throw error;
+      }else{
+        const {error} = await supa.from('rrhh_liquidaciones').insert({...payload, empleado_id:e.id, mes:filtroRrhhLiqMesVal, proyecto_id:currentProyecto.id});
+        if(error) throw error;
+      }
+    }
+    await loadAll();
+  }catch(e){ alert('Error calculando la liquidación: ' + e.message); }
+});
+async function toggleLiquidacionPagada(id, pagado){
+  try{
+    const {error} = await supa.from('rrhh_liquidaciones').update({pagado}).eq('id', id);
+    if(error) throw error;
+    await loadAll();
+  }catch(e){ alert('Error actualizando estado de pago: ' + e.message); }
+}
+
+/* ---------- RRHH: Aumentos ---------- */
+function renderRrhhAumentos(){
+  const empleados = data.empleados.filter(e=>e.activo).slice().sort((a,b)=>(a.apellido||'').localeCompare(b.apellido||''));
+  const tbody = document.getElementById('tblRrhhAumentos');
+  if(empleados.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhAumentos').style.display='block'; return; }
+  document.getElementById('emptyRrhhAumentos').style.display='none';
+  tbody.innerHTML = empleados.map(e=>{
+    const liqs = data.rrhhLiquidaciones.filter(l=>l.empleadoId===e.id).sort((a,b)=>a.mes.localeCompare(b.mes));
+    const sueldoActual = liqs.length>0 ? liqs[liqs.length-1].totalMes : e.sueldoIngreso;
+    const pctIncremento = e.sueldoIngreso>0 ? (sueldoActual/e.sueldoIngreso - 1) : 0;
+    const mesIngreso = e.fechaIngreso ? monthKey(e.fechaIngreso) : null;
+    const ipcAcumulado = data.rrhhParametrosMes.filter(p=> !mesIngreso || p.mes >= mesIngreso).reduce((acc,p)=> acc*(1+p.ipcRate), 1) - 1;
+    const diferencia = pctIncremento - ipcAcumulado;
+    return `<tr>
+      <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td><td class="muted">${fmtDate(e.fechaIngreso)}</td>
+      <td>${fmt(e.sueldoIngreso)}</td><td>${fmt(sueldoActual)}</td>
+      <td>${fmtPct(pctIncremento)}</td><td class="muted">${fmtPct(ipcAcumulado)}</td>
+      <td class="${diferencia<0?'eerr-cell-neg':'eerr-cell-pos'}">${fmtPct(diferencia)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ---------- RRHH: Liquidaciones finales ---------- */
+function renderRrhhLiqFinales(){
+  const rows = data.rrhhLiquidacionesFinales;
+  document.getElementById('countRrhhLiqFinales').textContent = rows.length;
+  const tbody = document.getElementById('tblRrhhLiqFinales');
+  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhLiqFinales').style.display='block'; return; }
+  document.getElementById('emptyRrhhLiqFinales').style.display='none';
+  tbody.innerHTML = rows.map(f=>`<tr>
+    <td>${escapeHtml(f.empleadoNombre)}</td><td class="muted">${fmtDate(f.fechaIngreso)}</td><td class="muted">${fmt(f.ultimoSueldo)}</td>
+    <td class="muted">${f.diasTrabajadosMes}</td><td class="muted">${f.diasTrabajadosTotal}</td>
+    <td class="muted">${fmt(f.sacProporcional)}</td><td class="muted">${fmt(f.vacaciones)}</td><td class="muted">${fmt(f.sacSobreVacaciones)}</td>
+    <td><b>${fmt(f.total)}</b></td>
+    <td class="actions">
+      <button class="btn secondary small" onclick="editLiqFinal('${f.id}')">Editar</button>
+      <button class="btn danger small" onclick="deleteLiqFinal('${f.id}')">Eliminar</button>
+    </td></tr>`).join('');
+}
+document.getElementById('btnAddLiqFinal').addEventListener('click', ()=>{
+  document.getElementById('modalLiqFinalTitle').textContent = 'Nueva liquidación final';
+  document.getElementById('liqFinalId').value = '';
+  const sel = document.getElementById('liqFinalEmpleado');
+  const bajas = data.empleados.filter(e=>!e.activo);
+  sel.innerHTML = bajas.map(e=>`<option value="${e.id}">${escapeHtml(e.apellido)}, ${escapeHtml(e.nombre)}</option>`).join('');
+  document.getElementById('liqFinalFechaIngreso').value = '';
+  document.getElementById('liqFinalUltimoSueldo').value = '';
+  document.getElementById('liqFinalDiasMes').value = '';
+  document.getElementById('liqFinalDiasTotal').value = '';
+  document.getElementById('liqFinalMontoDias').value = '';
+  document.getElementById('liqFinalSac').value = '';
+  document.getElementById('liqFinalVacaciones').value = '';
+  document.getElementById('liqFinalSacVac').value = '';
+  openModal('modalLiqFinal');
+});
+function prellenarLiqFinalDesdeEmpleado(){
+  const id = document.getElementById('liqFinalEmpleado').value;
+  const e = data.empleados.find(x=>x.id===id);
+  if(!e) return;
+  if(!document.getElementById('liqFinalFechaIngreso').value) document.getElementById('liqFinalFechaIngreso').value = e.fechaIngreso||'';
+  if(!document.getElementById('liqFinalUltimoSueldo').value){
+    const liqs = data.rrhhLiquidaciones.filter(l=>l.empleadoId===id).sort((a,b)=>a.mes.localeCompare(b.mes));
+    const ultimo = liqs.length>0 ? liqs[liqs.length-1].totalMes : e.sueldoIngreso;
+    document.getElementById('liqFinalUltimoSueldo').value = ultimo || '';
+  }
+}
+function editLiqFinal(id){
+  const f = data.rrhhLiquidacionesFinales.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById('modalLiqFinalTitle').textContent = 'Editar liquidación final';
+  document.getElementById('liqFinalId').value = f.id;
+  const sel = document.getElementById('liqFinalEmpleado');
+  const bajas = data.empleados.filter(e=>!e.activo || e.id===f.empleadoId);
+  sel.innerHTML = bajas.map(e=>`<option value="${e.id}">${escapeHtml(e.apellido)}, ${escapeHtml(e.nombre)}</option>`).join('');
+  sel.value = f.empleadoId;
+  document.getElementById('liqFinalFechaIngreso').value = f.fechaIngreso||'';
+  document.getElementById('liqFinalUltimoSueldo').value = f.ultimoSueldo||'';
+  document.getElementById('liqFinalDiasMes').value = f.diasTrabajadosMes||'';
+  document.getElementById('liqFinalDiasTotal').value = f.diasTrabajadosTotal||'';
+  document.getElementById('liqFinalMontoDias').value = f.montoDias||'';
+  document.getElementById('liqFinalSac').value = f.sacProporcional||'';
+  document.getElementById('liqFinalVacaciones').value = f.vacaciones||'';
+  document.getElementById('liqFinalSacVac').value = f.sacSobreVacaciones||'';
+  openModal('modalLiqFinal');
+}
+async function saveLiqFinal(){
+  try{
+    const id = document.getElementById('liqFinalId').value;
+    const empleadoId = document.getElementById('liqFinalEmpleado').value;
+    if(!empleadoId){ alert('Elegí un empleado.'); return; }
+    const montoDias = Number(document.getElementById('liqFinalMontoDias').value)||0;
+    const sac = Number(document.getElementById('liqFinalSac').value)||0;
+    const vacaciones = Number(document.getElementById('liqFinalVacaciones').value)||0;
+    const sacVac = Number(document.getElementById('liqFinalSacVac').value)||0;
+    const payload = {
+      empleado_id: empleadoId,
+      fecha_ingreso: document.getElementById('liqFinalFechaIngreso').value || null,
+      ultimo_sueldo: Number(document.getElementById('liqFinalUltimoSueldo').value)||0,
+      dias_trabajados_mes: Number(document.getElementById('liqFinalDiasMes').value)||0,
+      dias_trabajados_total: Number(document.getElementById('liqFinalDiasTotal').value)||0,
+      monto_dias: montoDias,
+      sac_proporcional: sac,
+      vacaciones: vacaciones,
+      sac_sobre_vacaciones: sacVac,
+      total: montoDias + sac + vacaciones + sacVac,
+    };
+    if(id){
+      const {error} = await supa.from('rrhh_liquidaciones_finales').update(payload).eq('id', id);
+      if(error) throw error;
+    }else{
+      const {error} = await supa.from('rrhh_liquidaciones_finales').insert({...payload, proyecto_id: currentProyecto.id});
+      if(error) throw error;
+    }
+    closeModal('modalLiqFinal');
+    await loadAll();
+  }catch(e){ alert('Error guardando la liquidación final: ' + e.message); }
+}
+async function deleteLiqFinal(id){
+  if(!confirm('¿Eliminar esta liquidación final?')) return;
+  try{
+    const {error} = await supa.from('rrhh_liquidaciones_finales').delete().eq('id', id);
+    if(error) throw error;
+    await loadAll();
+  }catch(e){ alert('Error eliminando: ' + e.message); }
+}
+
 /* ---------- Forma de pago (chip) ---------- */
     function togglePagoChip(ev, id){
       ev.stopPropagation();
