@@ -815,32 +815,6 @@
       <!-- ========== ADMINISTRACION: Costos laborales ========== -->
   <div class="view" id="view-costoslaborales">
     <div class="cards" id="costosLaboralesCards"></div>
-    <div class="panel">
-      <div class="panel-head">
-        <h2>Costos laborales <span class="badge-count" id="countCostosLaborales">0</span></h2>
-        <div class="filters">
-          <select id="filtroCostosLaboralesFamilia"><option value="">Todas las familias</option></select>
-          <select id="filtroCostosLaboralesTipoPersonal">
-            <option value="">Todo el personal</option>
-            <option value="Salon">Salón</option>
-            <option value="Cocina">Cocina</option>
-            <option value="Management">Management</option>
-            <option value="Administracion">Administración</option>
-          </select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('costoslaborales')">Exportar</button>
-          <button class="btn" id="btnAddCostoLaboral">+ Agregar</button>
-        </div>
-      </div>
-      <div class="table-scroll">
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de personal</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th></th>
-        </tr></thead>
-        <tbody id="tblCostosLaborales"></tbody>
-      </table>
-      </div>
-      <div class="empty" id="emptyCostosLaborales" style="display:none;">Todavía no cargaste costos laborales.</div>
-    </div>
 
     <div class="panel" id="panelCostosLaboralesPie">
       <div class="panel-head">
@@ -2996,53 +2970,19 @@ function exportarPDFResumen(){
 }
 
 /* ---------- Costos laborales ---------- */
-let filtroCostosLaboralesFamiliaVal = '';
-let filtroCostosLaboralesTipoPersonalVal = '';
 const LABELS_TIPO_PERSONAL = {Salon:'Salón', Cocina:'Cocina', Management:'Management', Administracion:'Administración'};
 function labelTipoPersonal(v){ return v ? (LABELS_TIPO_PERSONAL[v]||v) : '-'; }
 function renderCostosLaborales(){
   const baseRows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre));
-  const familiasLaborales = data.familias.filter(f=>esFamiliaCostoLaboral(f.nombre));
-
-  const selF = document.getElementById('filtroCostosLaboralesFamilia');
-  selF.innerHTML = '<option value="">Todas las familias</option>' + familiasLaborales.map(f=>`<option value="${escapeHtml(f.nombre)}">${escapeHtml(f.nombre)}</option>`).join('');
-  selF.value = filtroCostosLaboralesFamiliaVal;
-  document.getElementById('filtroCostosLaboralesTipoPersonal').value = filtroCostosLaboralesTipoPersonalVal;
-
-  const rows = baseRows.filter(g=>
-    (!filtroCostosLaboralesFamiliaVal || g.familiaNombre===filtroCostosLaboralesFamiliaVal) &&
-    (!filtroCostosLaboralesTipoPersonalVal || g.tipoPersonal===filtroCostosLaboralesTipoPersonalVal)
-  );
-  const totalGastos = rows.reduce((s,g)=>s+g.total,0);
-  const promedio = rows.length>0 ? totalGastos/rows.length : 0;
+  const totalGastos = baseRows.reduce((s,g)=>s+g.total,0);
+  const promedio = baseRows.length>0 ? totalGastos/baseRows.length : 0;
   document.getElementById('costosLaboralesCards').innerHTML = [
     {num:fmt(totalGastos), label:'Total costos laborales (2026)'},
-    {num:rows.length, label:'Comprobantes cargados'},
+    {num:baseRows.length, label:'Comprobantes cargados'},
     {num:fmt(promedio), label:'Costo promedio'},
   ].map(c=>`<div class="card"><div class="num" style="font-size:19px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
-
-  document.getElementById('countCostosLaborales').textContent = baseRows.length;
-  const tbody = document.getElementById('tblCostosLaborales');
-  if(rows.length===0){ tbody.innerHTML=''; document.getElementById('emptyCostosLaborales').style.display='block'; renderCostosLaboralesPie(); return; }
-  document.getElementById('emptyCostosLaborales').style.display='none';
-  const sorted = rows.slice().sort((a,b)=> (b.fechaFc||b.fechaCarga||'').localeCompare(a.fechaFc||a.fechaCarga||''));
-  tbody.innerHTML = sorted.map(g=>`<tr class="${g.total<0?'row-neg':''}">
-    <td>${fmtDate(g.fechaFc||g.fechaCarga)}</td><td>${escapeHtml(g.proveedorNombre)}</td>
-    <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(labelTipoPersonal(g.tipoPersonal))}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
-    <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
-    <td><b>${fmt(g.total)}</b></td>
-    <td class="actions">
-      <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
-      <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
-    </td></tr>`).join('');
   renderCostosLaboralesPie();
 }
-document.getElementById('filtroCostosLaboralesFamilia').addEventListener('change', e=>{
-  filtroCostosLaboralesFamiliaVal = e.target.value; renderCostosLaborales();
-});
-document.getElementById('filtroCostosLaboralesTipoPersonal').addEventListener('change', e=>{
-  filtroCostosLaboralesTipoPersonalVal = e.target.value; renderCostosLaborales();
-});
 
 /* Gráfico circular: % del costo laboral que representa cada sector (Salón, Cocina,
    Management, Administración). Se calcula siempre sobre TODOS los costos laborales
@@ -3809,24 +3749,6 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   document.getElementById('gastoNComprobante').value = '';
   document.getElementById('gastoTotal').value = '';
   document.getElementById('fieldGastoTipoPersonal').style.display = 'none';
-  document.getElementById('gastoTipoPersonal').value = '';
-  openModal('modalGasto');
-});
-document.getElementById('btnAddCostoLaboral').addEventListener('click', ()=>{
-  gastoModalContext = 'laborales';
-  document.getElementById('modalGastoTitle').textContent = 'Nuevo costo laboral';
-  document.getElementById('labelGastoFechaFc').textContent = 'Fecha';
-  document.getElementById('gastoId').value = '';
-  document.getElementById('gastoFechaFc').value = '';
-  document.getElementById('gastoFechaCarga').value = ''; document.getElementById('gastoFechaPago').value = '';
-  fillGastoSelects();
-  document.getElementById('gastoProveedor').value = '';
-  document.getElementById('gastoFamilia').value = '';
-  document.getElementById('gastoTipoGasto').value = '';
-  document.getElementById('gastoTipoComprobante').value = '';
-  document.getElementById('gastoNComprobante').value = '';
-  document.getElementById('gastoTotal').value = '';
-  document.getElementById('fieldGastoTipoPersonal').style.display = 'block';
   document.getElementById('gastoTipoPersonal').value = '';
   openModal('modalGasto');
 });
