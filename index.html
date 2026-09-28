@@ -157,6 +157,7 @@
     transition:background .15s ease, transform .1s ease;
   }
   .icon-trash-btn:hover{background:rgba(231,76,60,.14); transform:translateY(-1px);}
+  .caja-impuesto-input{width:90px; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:5px 7px; border-radius:6px; font-size:12.5px;}
   .table-scroll{overflow-x:auto;}
   table{width:100%; border-collapse:collapse; font-size:13px;}
   th{
@@ -668,7 +669,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th></th>
+          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th>Impuestos MP</th><th>Impuestos Bco.</th><th></th>
         </tr></thead>
         <tbody id="tblVentas"></tbody>
       </table>
@@ -1656,6 +1657,7 @@ async function loadAll(){
       terceirosCantidad:Number(v.terceros_cantidad)||0, terceirosTotal:Number(v.terceros_total)||0,
       parrillaEfectivo:Number(v.parrilla_efectivo)||0, parrillaMp:Number(v.parrilla_mp)||0,
       total:Number(v.total)||0,
+      impuestosMp:Number(v.impuestos_mp)||0, impuestosBco:Number(v.impuestos_bco)||0,
     }));
     data.cajaMovimientos = cajaD.map(c=>({
       id:c.id, cuenta:c.cuenta, fecha:c.fecha,
@@ -2418,6 +2420,8 @@ function renderVentasCaja(){
         <td>${fmt(v.viandasTotal)}<span class="muted"> (${v.viandasCantidad})</span></td>
         <td>${fmt(v.terceirosTotal)}<span class="muted"> (${v.terceirosCantidad})</span></td>
         <td>${fmt(parrillaTotal)}</td><td><b>${fmt(totalDia)}</b></td>
+        <td><input type="number" step="0.01" class="caja-impuesto-input" value="${v.impuestosMp || ''}" placeholder="0" onchange="guardarImpuestoCaja('${v.id}','impuestos_mp', this.value)"></td>
+        <td><input type="number" step="0.01" class="caja-impuesto-input" value="${v.impuestosBco || ''}" placeholder="0" onchange="guardarImpuestoCaja('${v.id}','impuestos_bco', this.value)"></td>
         <td class="actions"><button class="icon-trash-btn" title="Eliminar caja" onclick="abrirModalEliminarCaja('${v.id}')">${TRASH_ICON_SVG}</button></td></tr>`;
     }).join('');
   }
@@ -2640,6 +2644,22 @@ async function saveCajaDiaria(){
     closeModal('modalCajaDiaria');
     await loadAll();
   }catch(e){ alert('Error guardando la caja diaria: ' + e.message); }
+}
+
+/* Impuestos MP / Impuestos Bco.: casillas para completar a mano en la fila de cada
+   día de la tabla de Ventas diarias. No modifican el Total día (van después de esa
+   columna), pero sí viajan diariamente sumados a sus líneas del EERR:
+   Impuestos MP -> "IMPUESTOS y COMISIONES MP", Impuestos Bco. -> "COMISION POSNET". */
+async function guardarImpuestoCaja(id, campo, valorStr){
+  const valor = Number(valorStr) || 0;
+  const v = data.ventasDiarias.find(x=>x.id===id);
+  if(!v) return;
+  try{
+    const {error} = await supa.from('ventas_diarias').update({[campo]: valor}).eq('id', id);
+    if(error) throw error;
+    if(campo==='impuestos_mp') v.impuestosMp = valor; else v.impuestosBco = valor;
+    renderEerr();
+  }catch(e){ alert('Error guardando el impuesto: ' + e.message); }
 }
 
 /* ---------- Gastos ---------- */
@@ -3253,6 +3273,15 @@ function eerrGastosPorMes(){
        cómo haya quedado tipeada la familia (ej: "Bonos" vs "BONOS"). */
     const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
     map[k][fam] = (map[k][fam]||0) + g.total;
+  });
+  /* Impuestos MP / Impuestos Bco.: casillas cargadas a mano día a día en Ventas y
+     Caja. No suman al Total día de esa tabla, pero sí viajan diariamente a estas
+     líneas del EERR. */
+  data.ventasDiarias.forEach(v=>{
+    const k = monthKey(v.fecha); if(!k) return;
+    if(!map[k]) map[k] = {};
+    if(v.impuestosMp) map[k]['IMPUESTOS Y COMISIONES MP'] = (map[k]['IMPUESTOS Y COMISIONES MP']||0) + v.impuestosMp;
+    if(v.impuestosBco) map[k]['COMISION POSNET'] = (map[k]['COMISION POSNET']||0) + v.impuestosBco;
   });
   return map;
 }
