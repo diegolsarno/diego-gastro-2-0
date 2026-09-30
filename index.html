@@ -3189,14 +3189,17 @@ function exportarPDFResumen(){
 const LABELS_TIPO_PERSONAL = {Salon:'Salón', Cocina:'Cocina', Management:'Management', Administracion:'Administración'};
 function labelTipoPersonal(v){ return v ? (LABELS_TIPO_PERSONAL[v]||v) : '-'; }
 function renderCostosLaborales(){
-  const baseRows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre));
-  const totalGastos = baseRows.reduce((s,g)=>s+g.total,0);
-  const promedio = baseRows.length>0 ? totalGastos/baseRows.length : 0;
-  document.getElementById('costosLaboralesCards').innerHTML = [
-    {num:fmt(totalGastos), label:'Total costos laborales (2026)'},
-    {num:baseRows.length, label:'Comprobantes cargados'},
-    {num:fmt(promedio), label:'Costo promedio'},
-  ].map(c=>`<div class="card"><div class="num" style="font-size:19px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
+    const baseRows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre));
+    const hoy = new Date();
+    const mesActualCL = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+    const rowsMes = baseRows.filter(g=> monthKey(g.fechaFc||g.fechaCarga)===mesActualCL);
+    const totalMes = rowsMes.reduce((s,g)=>s+g.total,0);
+    const empleadosActivos = data.empleados.filter(e=>e.activo).length;
+    const promedio = empleadosActivos>0 ? totalMes/empleadosActivos : 0;
+    document.getElementById('costosLaboralesCards').innerHTML = [
+      {num:fmt(totalMes), label:'Total costos laborales (' + fmtMes(mesActualCL+'-01') + ')'},
+      {num:fmt(promedio), label:'Costo promedio'},      
+    ].map(c=>`<div class="card"><div class="num" style="font-size:19px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
   renderCostosLaboralesPie();
 }
 
