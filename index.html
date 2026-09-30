@@ -688,30 +688,7 @@
       </div>
       <div class="empty" id="emptyVentas" style="display:none;">Todavía no hay ventas diarias cargadas.</div>
     </div>
-    <div class="panel">
-      <div class="panel-head">
-        <h2>Movimientos de caja <span class="badge-count" id="countCaja">0</span></h2>
-        <div class="filters">
-          <select id="filtroCajaCuenta">
-            <option value="">Todas las cuentas</option>
-            <option value="Galicia">Galicia</option>
-            <option value="Efectivo">Efectivo</option>
-            <option value="MP">MP</option>
-          </select>
-          <button class="btn secondary small" onclick="abrirExportarPDF('movcaja')">Exportar</button>
-        </div>
-      </div>
-      <div class="table-scroll">
-      <table>
-        <thead><tr>
-          <th>Fecha</th><th>Cuenta</th><th>Ventas</th><th>Otro ingreso</th><th>Gastos</th><th>Comisiones</th><th>Impuestos</th><th>Retiros</th><th>Saldo</th>
-        </tr></thead>
-        <tbody id="tblCaja"></tbody>
-      </table>
-      </div>
-      <div class="empty" id="emptyCaja" style="display:none;">Todavía no hay movimientos de caja cargados.</div>
     </div>
-  </div>
 
       <!-- ========== ADMINISTRACION: Egresos ========== -->
       <div class="view" id="view-egresos">
@@ -1926,8 +1903,8 @@ let exportarPDFContexto = null;
 function abrirExportarPDF(contexto){
   exportarPDFContexto = contexto;
   const esMes = ['eerr','totales','totalesgastos','calendario','precios'].includes(contexto);
-  const esFecha = ['gastos','egresos','ventas','costoslaborales','movcaja','log'].includes(contexto);
-  const esCuenta = contexto==='egresos' || contexto==='movcaja';
+    const esFecha = ['gastos','egresos','ventas','costoslaborales','log'].includes(contexto);
+    const esCuenta = contexto==='egresos';
   const esExtra = ['insumos','recetas','precios'].includes(contexto);
   document.getElementById('exportarPDFCamposFecha').style.display = esFecha ? 'grid' : 'none';
   document.getElementById('exportarPDFCamposMes').style.display = esMes ? 'grid' : 'none';
@@ -1936,7 +1913,7 @@ function abrirExportarPDF(contexto){
   const titulos = {
     gastos:'Exportar Gastos', egresos:'Exportar Egresos', ventas:'Exportar Ventas diarias', eerr:'Exportar EERR',
     insumos:'Exportar Insumos', recetas:'Exportar Recetas', precios:'Exportar Progresión de precios',
-    costoslaborales:'Exportar Costos laborales', movcaja:'Exportar Movimientos de caja',
+    costoslaborales:'Exportar Costos laborales',
     totales:'Exportar Totales mensuales', totalesgastos:'Exportar Totales gastos', calendario:'Exportar Calendario de pagos',
     log:'Exportar Log de actividad', resumen:'Exportar Resumen', menu:'Exportar Menú',
     familias:'Exportar Familias', proveedores:'Exportar Proveedores', usuarios:'Exportar Usuarios',
@@ -1961,9 +1938,6 @@ function abrirExportarPDF(contexto){
     if(contexto==='egresos'){
       cuentaSel.innerHTML = '<option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Banco">Banco (E-check)</option><option value="MP">Mercado Pago</option>';
       cuentaSel.value = filtroEgresosCuenta;
-    }else if(contexto==='movcaja'){
-      cuentaSel.innerHTML = '<option value="">Todas las cuentas</option><option value="Galicia">Galicia</option><option value="Efectivo">Efectivo</option><option value="MP">MP</option>';
-      cuentaSel.value = filtroCajaCuentaVal;
     }
   }
   if(esExtra){
@@ -2079,11 +2053,7 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
         const cuenta = document.getElementById('exportarPDFCuenta').value;
         exportarPDFEgresos(desde, hasta, cuenta);
       }else if(contexto==='costoslaborales') exportarPDFCostosLaborales(desde, hasta);
-      else if(contexto==='movcaja'){
-        const cuenta = document.getElementById('exportarPDFCuenta').value;
-        exportarPDFMovCaja(desde, hasta, cuenta);
-      }else if(contexto==='log') exportarPDFLog(desde, hasta);
-    }
+            else if(contexto==='log') exportarPDFLog(desde, hasta);}
     closeModal('modalExportarPDF');
   }catch(e){ alert('Error generando el reporte: ' + e.message); }
 });
@@ -2624,26 +2594,8 @@ function renderVentasCaja(){
     }).join('');
   }
 
-  const sel = document.getElementById('filtroCajaCuenta');
-  sel.value = filtroCajaCuentaVal;
-  const cajaRows = data.cajaMovimientos.filter(c=> !filtroCajaCuentaVal || c.cuenta===filtroCajaCuentaVal)
-    .slice().sort((a,b)=> a.cuenta===b.cuenta ? b.fecha.localeCompare(a.fecha) : a.cuenta.localeCompare(b.cuenta));
-  document.getElementById('countCaja').textContent = data.cajaMovimientos.length;
-  const tbodyC = document.getElementById('tblCaja');
-  if(cajaRows.length===0){ tbodyC.innerHTML=''; document.getElementById('emptyCaja').style.display='block'; }
-  else{
-    document.getElementById('emptyCaja').style.display='none';
-    tbodyC.innerHTML = cajaRows.map(c=>`<tr>
-      <td>${fmtDate(c.fecha)}</td><td class="muted">${escapeHtml(c.cuenta)}</td>
-      <td>${fmt(c.ventas)}</td><td>${fmt(c.otroIngreso)}</td><td>${fmt(c.gastos)}</td>
-      <td>${fmt(c.comisiones)}</td><td>${fmt(c.impuestos)}</td><td>${fmt(c.retiros)}</td>
-      <td><b>${fmt(c.saldo)}</b></td></tr>`).join('');
-  }
 }
-document.getElementById('filtroCajaCuenta').addEventListener('change', e=>{
-  filtroCajaCuentaVal = e.target.value; renderVentasCaja();
-}); document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
-
+  document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
 function exportarPDFVentas(desde, hasta){
   const rows = data.ventasDiarias.filter(v=> v.fecha>=desde && v.fecha<=hasta).sort((a,b)=> a.fecha.localeCompare(b.fecha));
   const columnas = ['Fecha','Restaurante','Kiosco','Chiringo','Viandas','3ros Tiempos','Parrilla','Total día'];
