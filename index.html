@@ -3198,7 +3198,7 @@ function renderCostosLaborales(){
     const promedio = empleadosActivos>0 ? totalMes/empleadosActivos : 0;
     document.getElementById('costosLaboralesCards').innerHTML = [
       {num:fmt(totalMes), label:'Total costos laborales (' + fmtMes(mesActualCL+'-01') + ')'},
-      {num:fmt(promedio), label:'Costo promedio'},      
+      {num:fmt(promedio), label:'Costo promedio por empleado'},      
     ].map(c=>`<div class="card"><div class="num" style="font-size:19px;">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
   renderCostosLaboralesPie();
 }
