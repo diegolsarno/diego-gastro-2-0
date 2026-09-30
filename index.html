@@ -4076,7 +4076,7 @@ async function deleteEmpleado(id){
 }
 
 /* ---------- RRHH: Novedades del mes ---------- */
-function mesActualStr(){ const hoy = new Date(); return hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0'); }
+function mesActualStr(){ const hoy = new Date(); return hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-01'; }
 let filtroRrhhNovedadesMesVal = '';
 function renderRrhhNovedades(){
   const mesActual = mesActualStr();
