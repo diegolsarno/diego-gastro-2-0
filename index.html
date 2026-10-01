@@ -7,7 +7,7 @@
 <script>
   (function(){
     try{
-      // Modo noche automático: oscuro de 20:00 a 07:00, claro el resto del día.
+      // Modo noche automático: oscuro de 20:00 a 07:00, claro el resto del día.     
       // Si el usuario ya lo cambió a mano alguna vez, se respeta ese valor manual.
       var mode = localStorage.getItem('costeoNidoThemeMode') || 'auto';
       var theme;
@@ -681,7 +681,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th>Impuestos MP</th><th>Impuestos Bco.</th><th></th>
+          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th>Impuestos MP</th><th>Impuestos TC</th><th></th></th></th>
         </tr></thead>
         <tbody id="tblVentas"></tbody>
       </table>
