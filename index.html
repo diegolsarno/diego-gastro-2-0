@@ -550,6 +550,7 @@
   <button data-view="proveedores">Proveedores</button>
   <button data-view="usuarios" id="navUsuarios" class="app-hidden">Usuarios</button>
   <button data-view="log">Log</button>
+  <button data-view="preciosviandas3t">Precios vianda y 3T mensual</button>
 </nav>
 <nav class="subnav" id="subnav-rrhh">
   <button data-view="costoslaborales" class="active">Costos laborales</button>
@@ -1025,6 +1026,23 @@
     </div>
   </div>
 
+  <!-- ========== PARAMETROS: Precios vianda y 3T mensual ========== -->
+  <div class="view" id="view-preciosviandas3t">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Precios vianda y 3T mensual <span class="badge-count" id="countPreciosV3T">0</span></h2>
+        <button class="btn" id="btnAddPrecioV3T">+ Agregar precio</button>
+      </div>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Mes</th><th>Precio vianda</th><th>Precio 3T</th><th></th></tr></thead>
+        <tbody id="tblPreciosV3T"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyPreciosV3T" style="display:none;">Todavía no cargaste precios de vianda y 3T.</div>
+    </div>
+  </div>
+
   <!-- ========== PARAMETROS: Log de actividad ========== -->
   <div class="view" id="view-log">
     <div class="panel">
@@ -1164,6 +1182,21 @@
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalFamilia')">Cancelar</button>
       <button class="btn" onclick="saveFamilia()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRECIO VIANDA Y 3T -->
+<div class="overlay" id="modalPrecioV3T">
+  <div class="modal">
+    <h3 id="modalPrecioV3TTitle">Nuevo precio</h3>
+    <input type="hidden" id="precioV3TId">
+    <div class="field"><label>Mes</label><input id="precioV3TMes" type="month"></div>
+    <div class="field"><label>Precio vianda</label><input id="precioV3TVianda" type="number" step="0.01" placeholder="0"></div>
+    <div class="field"><label>Precio 3T</label><input id="precioV3TTercero" type="number" step="0.01" placeholder="0"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalPrecioV3T')">Cancelar</button>
+      <button class="btn" onclick="savePrecioV3T()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1414,7 +1447,7 @@ if(supa){
 
 let data = {
   insumos:[], recetas:[], menu:[],
-  proveedores:[], familias:[], precioHistorico:[],
+  proveedores:[], familias:[], precioHistorico:[], preciosViandas3T:[],
   gastos:[], ventasDiarias:[], cajaMovimientos:[],
   egresosSaldosIniciales:{},
   empleados:[], rrhhParametrosMes:[], rrhhEventuales:[], rrhhLiquidaciones:[], rrhhLiquidacionesFinales:[],
@@ -1757,7 +1790,7 @@ async function loadAll(){
 
     /* --- Nuevas tablas (Administracion / Parametros). Se cargan de forma tolerante
        a errores para no romper el resto de la app si alguna tabla todavia no existe. --- */
-    const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD, egresosSaldosD] = await Promise.all([
+    const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD, egresosSaldosD, preciosV3TD] = await Promise.all([
       safeQuery(supa.from('proveedores').select('*').order('nombre'), 'proveedores'),
       safeQuery(supa.from('familias').select('*').order('nombre'), 'familias'),
       safeQuery(supa.from('precio_historico').select('*, insumos(nombre), proveedores(nombre)').eq('proyecto_id', pid).order('mes'), 'precio_historico'),
@@ -1765,6 +1798,7 @@ async function loadAll(){
       safeQuery(supa.from('ventas_diarias').select('*').eq('proyecto_id', pid).order('fecha'), 'ventas_diarias'),
       safeQuery(supa.from('caja_movimientos').select('*').eq('proyecto_id', pid).order('cuenta').order('fecha'), 'caja_movimientos'),
       safeQuery(supa.from('egresos_saldos_iniciales').select('*').eq('proyecto_id', pid), 'egresos_saldos_iniciales'),
+      safeQuery(supa.from('precios_viandas_3t').select('*').eq('proyecto_id', pid).order('mes'), 'precios_viandas_3t'),
     ]);
 
     data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||''}));
@@ -1774,6 +1808,9 @@ async function loadAll(){
       insumoId:p.insumo_id, proveedorId:p.proveedor_id,
       insumoNombre: (p.insumos && p.insumos.nombre) ? p.insumos.nombre : '(sin vincular)',
       proveedorNombre: (p.proveedores && p.proveedores.nombre) ? p.proveedores.nombre : '-',
+    }));
+    data.preciosViandas3T = preciosV3TD.map(p=>({
+      id:p.id, mes:p.mes, precioVianda:Number(p.precio_vianda)||0, precio3t:Number(p.precio_3t)||0,
     }));
     data.gastos = gastosD.map(g=>({
       id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago, formaPagoFecha:g.forma_pago_fecha,
@@ -2163,6 +2200,7 @@ function renderAll(){
   fillFamiliaDatalist();
   renderFamilias(); renderProveedores();
   renderPrecios();
+  renderPreciosViandas3T();
   renderVentasCaja();
   renderTotales();
   renderGastos();
@@ -2770,14 +2808,17 @@ async function saveCajaDiaria(){
   const restauranteEfectivo = num('cajaDiariaRestEfectivo');
   const restauranteBco = num('cajaDiariaRestBco');
   const restauranteMp = num('cajaDiariaRestMp');
+  const viandasCantidadVal = num('cajaDiariaViandasCantidad');
+  const terceirosCantidadVal = num('cajaDiariaTercerosCantidad');
+  const precioV3TMes = precioViandas3TParaMes(fecha.slice(0,7)+'-01');
   const payload = {
     fecha,
     restaurante_efectivo: restauranteEfectivo, restaurante_bco: restauranteBco, restaurante_mp: restauranteMp,
     kiosco_efectivo: num('cajaDiariaKioscoEfectivo'), kiosco_bco: 0, kiosco_mp: num('cajaDiariaKioscoMp'),
     chiringo_efectivo: num('cajaDiariaChiringoEfectivo'), chiringo_mp: num('cajaDiariaChiringoMp'),
     parrilla_efectivo: num('cajaDiariaParrillaEfectivo'), parrilla_mp: num('cajaDiariaParrillaMp'),
-    viandas_cantidad: num('cajaDiariaViandasCantidad'), viandas_total: 0,
-    terceros_cantidad: num('cajaDiariaTercerosCantidad'), terceros_total: 0,
+    viandas_cantidad: viandasCantidadVal, viandas_total: viandasCantidadVal * precioV3TMes.precioVianda,
+    terceros_cantidad: terceirosCantidadVal, terceros_total: terceirosCantidadVal * precioV3TMes.precio3t,
     total: restauranteEfectivo + restauranteBco + restauranteMp,
     proyecto_id: currentProyecto.id,
   };
@@ -3642,6 +3683,76 @@ async function deleteFamilia(id){
     if(error) throw error;
     await loadAll();
   }catch(e){ alert('Error eliminando familia: ' + e.message); }
+}
+
+/* ---------- Precios vianda y 3T mensual ---------- */
+function precioViandas3TParaMes(mesStr){
+  const candidatos = data.preciosViandas3T.filter(p=>p.mes<=mesStr).sort((a,b)=> b.mes.localeCompare(a.mes));
+  return candidatos[0] || {precioVianda:0, precio3t:0};
+}
+function renderPreciosViandas3T(){
+  const tbody = document.getElementById('tblPreciosV3T');
+  const ordenados = [...data.preciosViandas3T].sort((a,b)=> b.mes.localeCompare(a.mes));
+  document.getElementById('countPreciosV3T').textContent = ordenados.length;
+  if(ordenados.length===0){ tbody.innerHTML=''; document.getElementById('emptyPreciosV3T').style.display='block'; return; }
+  document.getElementById('emptyPreciosV3T').style.display='none';
+  tbody.innerHTML = ordenados.map(p=>`<tr>
+    <td>${fmtMes(p.mes)}</td><td>${fmt(p.precioVianda)}</td><td>${fmt(p.precio3t)}</td>
+    <td class="actions">
+      <button class="btn secondary small" onclick="editPrecioV3T('${p.id}')">Editar</button>
+      <button class="btn danger small" onclick="deletePrecioV3T('${p.id}')">Eliminar</button>
+    </td></tr>`).join('');
+}
+document.getElementById('btnAddPrecioV3T').addEventListener('click', ()=>{
+  document.getElementById('modalPrecioV3TTitle').textContent = 'Nuevo precio';
+  document.getElementById('precioV3TId').value = '';
+  document.getElementById('precioV3TMes').value = new Date().toISOString().slice(0,7);
+  document.getElementById('precioV3TVianda').value = '';
+  document.getElementById('precioV3TTercero').value = '';
+  openModal('modalPrecioV3T');
+});
+function editPrecioV3T(id){
+  const p = data.preciosViandas3T.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('modalPrecioV3TTitle').textContent = 'Editar precio';
+  document.getElementById('precioV3TId').value = p.id;
+  document.getElementById('precioV3TMes').value = (p.mes||'').slice(0,7);
+  document.getElementById('precioV3TVianda').value = p.precioVianda;
+  document.getElementById('precioV3TTercero').value = p.precio3t;
+  openModal('modalPrecioV3T');
+}
+async function savePrecioV3T(){
+  const id = document.getElementById('precioV3TId').value;
+  const mesInput = document.getElementById('precioV3TMes').value;
+  if(!mesInput){ alert('Elegí un mes.'); return; }
+  const mes = mesInput + '-01';
+  const precio_vianda = Number(document.getElementById('precioV3TVianda').value) || 0;
+  const precio_3t = Number(document.getElementById('precioV3TTercero').value) || 0;
+  try{
+    if(id){
+      const {error} = await supa.from('precios_viandas_3t').update({mes, precio_vianda, precio_3t}).eq('id', id);
+      if(error) throw error;
+    }else{
+      const {error} = await supa.from('precios_viandas_3t').insert({mes, precio_vianda, precio_3t, proyecto_id: currentProyecto.id});
+      if(error){
+        if(error.code==='23505' || /duplicate/i.test(error.message)){
+          alert('Ya existe un precio cargado para ese mes. Editalo desde la lista.');
+          return;
+        }
+        throw error;
+      }
+    }
+    closeModal('modalPrecioV3T');
+    await loadAll();
+  }catch(e){ alert('Error guardando el precio: ' + e.message); }
+}
+async function deletePrecioV3T(id){
+  if(!confirm('¿Eliminar este precio?')) return;
+  try{
+    const {error} = await supa.from('precios_viandas_3t').delete().eq('id', id);
+    if(error) throw error;
+    await loadAll();
+  }catch(e){ alert('Error eliminando el precio: ' + e.message); }
 }
 
 /* ---------- Proveedores ---------- */
