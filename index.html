@@ -1035,7 +1035,7 @@
       </div>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>Mes</th><th>Precio vianda</th><th>Precio 3T</th><th></th></tr></thead>
+        <thead><tr><th>Mes</th><th>% Aumento</th><th>Precio vianda</th><th>Precio 3T</th><th></th></tr></thead>
         <tbody id="tblPreciosV3T"></tbody>
       </table>
       </div>
@@ -1191,7 +1191,9 @@
   <div class="modal">
     <h3 id="modalPrecioV3TTitle">Nuevo precio</h3>
     <input type="hidden" id="precioV3TId">
-    <div class="field"><label>Mes</label><input id="precioV3TMes" type="month"></div>
+    <div class="field"><label>Mes</label><input id="precioV3TMes" type="month" onchange="calcularPrecioV3TDesdePct()"></div>
+    <div class="field"><label>% Aumento vs. mes anterior</label><input id="precioV3TPct" type="number" step="0.01" placeholder="Ej: 5" oninput="calcularPrecioV3TDesdePct()"></div>
+    <div class="hint" id="precioV3THint"></div>
     <div class="field"><label>Precio vianda</label><input id="precioV3TVianda" type="number" step="0.01" placeholder="0"></div>
     <div class="field"><label>Precio 3T</label><input id="precioV3TTercero" type="number" step="0.01" placeholder="0"></div>
     <div class="modal-actions">
@@ -1811,6 +1813,7 @@ async function loadAll(){
     }));
     data.preciosViandas3T = preciosV3TD.map(p=>({
       id:p.id, mes:p.mes, precioVianda:Number(p.precio_vianda)||0, precio3t:Number(p.precio_3t)||0,
+      pctAumento: (p.pct_aumento===null || p.pct_aumento===undefined) ? null : Number(p.pct_aumento),
     }));
     data.gastos = gastosD.map(g=>({
       id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago, formaPagoFecha:g.forma_pago_fecha,
@@ -3690,6 +3693,32 @@ function precioViandas3TParaMes(mesStr){
   const candidatos = data.preciosViandas3T.filter(p=>p.mes<=mesStr).sort((a,b)=> b.mes.localeCompare(a.mes));
   return candidatos[0] || {precioVianda:0, precio3t:0};
 }
+function precioV3TAnteriorA(mesStr, excluirId){
+  const candidatos = data.preciosViandas3T
+    .filter(p=>p.mes<mesStr && p.id!==excluirId)
+    .sort((a,b)=> b.mes.localeCompare(a.mes));
+  return candidatos[0] || null;
+}
+function calcularPrecioV3TDesdePct(){
+  const mesInput = document.getElementById('precioV3TMes').value;
+  const hint = document.getElementById('precioV3THint');
+  const pctStr = document.getElementById('precioV3TPct').value;
+  if(!mesInput){ hint.textContent = ''; return; }
+  const mes = mesInput + '-01';
+  const id = document.getElementById('precioV3TId').value;
+  const anterior = precioV3TAnteriorA(mes, id);
+  if(!anterior){
+    hint.textContent = 'No hay un precio anterior cargado: ingresá el valor base de vianda y 3T directamente.';
+    return;
+  }
+  hint.textContent = `Mes anterior (${fmtMes(anterior.mes)}): vianda ${fmt(anterior.precioVianda)} / 3T ${fmt(anterior.precio3t)}`;
+  const pct = Number(pctStr);
+  if(pctStr==='' || isNaN(pct)) return;
+  const nuevaVianda = anterior.precioVianda * (1 + pct/100);
+  const nuevo3t = anterior.precio3t * (1 + pct/100);
+  document.getElementById('precioV3TVianda').value = Math.round(nuevaVianda*100)/100;
+  document.getElementById('precioV3TTercero').value = Math.round(nuevo3t*100)/100;
+}
 function renderPreciosViandas3T(){
   const tbody = document.getElementById('tblPreciosV3T');
   const ordenados = [...data.preciosViandas3T].sort((a,b)=> b.mes.localeCompare(a.mes));
@@ -3697,7 +3726,7 @@ function renderPreciosViandas3T(){
   if(ordenados.length===0){ tbody.innerHTML=''; document.getElementById('emptyPreciosV3T').style.display='block'; return; }
   document.getElementById('emptyPreciosV3T').style.display='none';
   tbody.innerHTML = ordenados.map(p=>`<tr>
-    <td>${fmtMes(p.mes)}</td><td>${fmt(p.precioVianda)}</td><td>${fmt(p.precio3t)}</td>
+    <td>${fmtMes(p.mes)}</td><td class="muted">${p.pctAumento===null?'-':fmtPct(p.pctAumento/100)}</td><td>${fmt(p.precioVianda)}</td><td>${fmt(p.precio3t)}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="editPrecioV3T('${p.id}')">Editar</button>
       <button class="btn danger small" onclick="deletePrecioV3T('${p.id}')">Eliminar</button>
@@ -3707,9 +3736,12 @@ document.getElementById('btnAddPrecioV3T').addEventListener('click', ()=>{
   document.getElementById('modalPrecioV3TTitle').textContent = 'Nuevo precio';
   document.getElementById('precioV3TId').value = '';
   document.getElementById('precioV3TMes').value = new Date().toISOString().slice(0,7);
+  document.getElementById('precioV3TPct').value = '';
   document.getElementById('precioV3TVianda').value = '';
   document.getElementById('precioV3TTercero').value = '';
+  document.getElementById('precioV3THint').textContent = '';
   openModal('modalPrecioV3T');
+  calcularPrecioV3TDesdePct();
 });
 function editPrecioV3T(id){
   const p = data.preciosViandas3T.find(x=>x.id===id);
@@ -3717,23 +3749,27 @@ function editPrecioV3T(id){
   document.getElementById('modalPrecioV3TTitle').textContent = 'Editar precio';
   document.getElementById('precioV3TId').value = p.id;
   document.getElementById('precioV3TMes').value = (p.mes||'').slice(0,7);
+  document.getElementById('precioV3TPct').value = p.pctAumento===null ? '' : p.pctAumento;
   document.getElementById('precioV3TVianda').value = p.precioVianda;
   document.getElementById('precioV3TTercero').value = p.precio3t;
   openModal('modalPrecioV3T');
+  calcularPrecioV3TDesdePct();
 }
 async function savePrecioV3T(){
   const id = document.getElementById('precioV3TId').value;
   const mesInput = document.getElementById('precioV3TMes').value;
   if(!mesInput){ alert('Elegí un mes.'); return; }
   const mes = mesInput + '-01';
+  const pctStr = document.getElementById('precioV3TPct').value;
+  const pct_aumento = pctStr==='' ? null : Number(pctStr);
   const precio_vianda = Number(document.getElementById('precioV3TVianda').value) || 0;
   const precio_3t = Number(document.getElementById('precioV3TTercero').value) || 0;
   try{
     if(id){
-      const {error} = await supa.from('precios_viandas_3t').update({mes, precio_vianda, precio_3t}).eq('id', id);
+      const {error} = await supa.from('precios_viandas_3t').update({mes, precio_vianda, precio_3t, pct_aumento}).eq('id', id);
       if(error) throw error;
     }else{
-      const {error} = await supa.from('precios_viandas_3t').insert({mes, precio_vianda, precio_3t, proyecto_id: currentProyecto.id});
+      const {error} = await supa.from('precios_viandas_3t').insert({mes, precio_vianda, precio_3t, pct_aumento, proyecto_id: currentProyecto.id});
       if(error){
         if(error.code==='23505' || /duplicate/i.test(error.message)){
           alert('Ya existe un precio cargado para ese mes. Editalo desde la lista.');
@@ -3743,6 +3779,7 @@ async function savePrecioV3T(){
       }
     }
     closeModal('modalPrecioV3T');
+    await recalcularVentasPorPreciosV3T();
     await loadAll();
   }catch(e){ alert('Error guardando el precio: ' + e.message); }
 }
@@ -3751,8 +3788,39 @@ async function deletePrecioV3T(id){
   try{
     const {error} = await supa.from('precios_viandas_3t').delete().eq('id', id);
     if(error) throw error;
+    await recalcularVentasPorPreciosV3T();
     await loadAll();
   }catch(e){ alert('Error eliminando el precio: ' + e.message); }
+}
+async function recalcularVentasPorPreciosV3T(){
+  try{
+    const pid = currentProyecto.id;
+    const [{data:precios, error:e1}, {data:ventas, error:e2}] = await Promise.all([
+      supa.from('precios_viandas_3t').select('mes, precio_vianda, precio_3t').eq('proyecto_id', pid).order('mes'),
+      supa.from('ventas_diarias').select('id, fecha, viandas_cantidad, terceros_cantidad, viandas_total, terceros_total').eq('proyecto_id', pid),
+    ]);
+    if(e1 || e2) return;
+    const preciosOrdenados = [...(precios||[])].sort((a,b)=> a.mes.localeCompare(b.mes));
+    function precioParaMes(mesStr){
+      const candidatos = preciosOrdenados.filter(p=>p.mes<=mesStr);
+      return candidatos.length ? candidatos[candidatos.length-1] : {precio_vianda:0, precio_3t:0};
+    }
+    const actualizaciones = [];
+    (ventas||[]).forEach(v=>{
+      const mesFila = v.fecha.slice(0,7)+'-01';
+      const p = precioParaMes(mesFila);
+      const nuevoViandasTotal = Number(v.viandas_cantidad||0) * Number(p.precio_vianda||0);
+      const nuevoTercerosTotal = Number(v.terceros_cantidad||0) * Number(p.precio_3t||0);
+      const actualViandasTotal = Number(v.viandas_total||0);
+      const actualTercerosTotal = Number(v.terceros_total||0);
+      if(Math.abs(nuevoViandasTotal-actualViandasTotal)>0.009 || Math.abs(nuevoTercerosTotal-actualTercerosTotal)>0.009){
+        actualizaciones.push({id:v.id, viandas_total:nuevoViandasTotal, terceros_total:nuevoTercerosTotal});
+      }
+    });
+    for(const u of actualizaciones){
+      await supa.from('ventas_diarias').update({viandas_total:u.viandas_total, terceros_total:u.terceros_total}).eq('id', u.id);
+    }
+  }catch(e){ console.error('Error recalculando ventas por precios de vianda/3T:', e); }
 }
 
 /* ---------- Proveedores ---------- */
