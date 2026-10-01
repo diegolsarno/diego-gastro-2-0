@@ -1165,6 +1165,10 @@
       <label id="exportarPDFExtraLabel">Filtro</label>
       <select id="exportarPDFExtra"></select>
     </div>
+    <div class="field" id="exportarPDFCamposFormaPago" style="display:none;">
+      <label>Incluir en el reporte</label>
+      <div id="exportarPDFFormaPagoList" style="display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:4px; max-height:160px; overflow:auto;"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalExportarPDF')">Cancelar</button>
       <button class="btn" id="btnConfirmarExportarPDF">Generar</button>
@@ -1946,10 +1950,12 @@ function abrirExportarPDF(contexto){
     const esFecha = ['gastos','egresos','ventas','costoslaborales','log'].includes(contexto);
     const esCuenta = contexto==='egresos';
   const esExtra = ['insumos','recetas','precios'].includes(contexto);
+  const esFormaPago = contexto==='ventas';
   document.getElementById('exportarPDFCamposFecha').style.display = esFecha ? 'grid' : 'none';
   document.getElementById('exportarPDFCamposMes').style.display = esMes ? 'grid' : 'none';
   document.getElementById('exportarPDFCamposCuenta').style.display = esCuenta ? 'block' : 'none';
   document.getElementById('exportarPDFCamposExtra').style.display = esExtra ? 'block' : 'none';
+  document.getElementById('exportarPDFCamposFormaPago').style.display = esFormaPago ? 'block' : 'none';
   const titulos = {
     gastos:'Exportar Gastos', egresos:'Exportar Egresos', ventas:'Exportar Ventas diarias', eerr:'Exportar EERR',
     insumos:'Exportar Insumos', recetas:'Exportar Recetas', precios:'Exportar Progresión de precios',
@@ -1997,6 +2003,10 @@ function abrirExportarPDF(contexto){
       extraSel.innerHTML = '<option value="">Todos los insumos</option>' + nombresUnicos.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
     }
     extraSel.value = '';
+  }
+  if(esFormaPago){
+    const cont = document.getElementById('exportarPDFFormaPagoList');
+    cont.innerHTML = VENTAS_CATEGORIAS.map(c=>`<label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text); text-transform:none; font-size:12.5px;"><input type="checkbox" class="exportarPDFFormaPagoChk" value="${c.key}" checked> ${c.label}</label>`).join('');
   }
   openModal('modalExportarPDF');
 }
@@ -2088,7 +2098,11 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
       if(!desde || !hasta){ alert('Elegí el rango de fechas.'); return; }
       if(desde > hasta){ alert('La fecha "desde" no puede ser posterior a "hasta".'); return; }
       if(contexto==='gastos') exportarPDFGastos(desde, hasta);
-      else if(contexto==='ventas') exportarPDFVentas(desde, hasta);
+      else if(contexto==='ventas'){
+        const categoriasSel = [...document.querySelectorAll('.exportarPDFFormaPagoChk:checked')].map(el=>el.value);
+        if(categoriasSel.length===0){ alert('Elegí al menos una forma de pago / categoría para incluir en el reporte.'); return; }
+        exportarPDFVentas(desde, hasta, categoriasSel);
+      }
       else if(contexto==='egresos'){
         const cuenta = document.getElementById('exportarPDFCuenta').value;
         exportarPDFEgresos(desde, hasta, cuenta);
@@ -2637,23 +2651,40 @@ function renderVentasCaja(){
 
 }
   document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
-function exportarPDFVentas(desde, hasta){
+const VENTAS_CATEGORIAS = [
+  {key:'restEfectivo', label:'Restaurante Efectivo', get:v=>v.restauranteEfectivo},
+  {key:'restBco', label:'Restaurante Banco', get:v=>v.restauranteBco},
+  {key:'restMp', label:'Restaurante MP', get:v=>v.restauranteMp},
+  {key:'kioscoEfectivo', label:'Kiosco Efectivo', get:v=>v.kioscoEfectivo},
+  {key:'kioscoBco', label:'Kiosco Banco', get:v=>v.kioscoBco},
+  {key:'kioscoMp', label:'Kiosco MP', get:v=>v.kioscoMp},
+  {key:'chiringoEfectivo', label:'Chiringo Efectivo', get:v=>v.chiringoEfectivo||0},
+  {key:'chiringoMp', label:'Chiringo MP', get:v=>v.chiringoMp||0},
+  {key:'parrillaEfectivo', label:'Parrilla Efectivo', get:v=>v.parrillaEfectivo},
+  {key:'parrillaMp', label:'Parrilla MP', get:v=>v.parrillaMp},
+  {key:'viandas', label:'Viandas', get:v=>v.viandasTotal},
+  {key:'terceros', label:'3ros Tiempos', get:v=>v.terceirosTotal},
+  {key:'impuestosMp', label:'Impuestos MP', get:v=>v.impuestosMp},
+  {key:'impuestosBco', label:'Impuestos TC', get:v=>v.impuestosBco},
+];
+function exportarPDFVentas(desde, hasta, categoriasSel){
+  const categorias = VENTAS_CATEGORIAS.filter(c => !categoriasSel || categoriasSel.includes(c.key));
   const rows = data.ventasDiarias.filter(v=> v.fecha>=desde && v.fecha<=hasta).sort((a,b)=> a.fecha.localeCompare(b.fecha));
-  const columnas = ['Fecha','Restaurante','Kiosco','Chiringo','Viandas','3ros Tiempos','Parrilla','Total día'];
-  let totRest=0, totKio=0, totChi=0, totVia=0, tot3=0, totPar=0, totDia=0;
+  const columnas = ['Fecha', ...categorias.map(c=>c.label), 'Total día'];
+  const totalesPorCategoria = categorias.map(()=>0);
+  let totDia = 0;
   const filas = rows.map(v=>{
-    const kioscoTotal = v.kioscoEfectivo+v.kioscoBco+v.kioscoMp;
-    const chiringoTotal = (v.chiringoEfectivo||0)+(v.chiringoMp||0);
-    const parrillaTotal = v.parrillaEfectivo+v.parrillaMp;
-    const totalDia = v.total + kioscoTotal + chiringoTotal + v.viandasTotal + v.terceirosTotal + parrillaTotal;
-    totRest+=v.total; totKio+=kioscoTotal; totChi+=chiringoTotal; totVia+=v.viandasTotal; tot3+=v.terceirosTotal; totPar+=parrillaTotal; totDia+=totalDia;
-    return [fmtDate(v.fecha), fmt(v.total), fmt(kioscoTotal), fmt(chiringoTotal), fmt(v.viandasTotal), fmt(v.terceirosTotal), fmt(parrillaTotal), fmt(totalDia)];
+    const valores = categorias.map(c=> Number(c.get(v))||0);
+    valores.forEach((val,i)=> totalesPorCategoria[i]+=val);
+    const totalFila = valores.reduce((s,x)=>s+x, 0);
+    totDia += totalFila;
+    return [fmtDate(v.fecha), ...valores.map(fmt), fmt(totalFila)];
   });
   generarPDFTabla({
     titulo: 'Ventas diarias',
     subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} día(s) cargado(s)`,
     columnas, filas,
-    totalesFila: ['Total', fmt(totRest), fmt(totKio), fmt(totChi), fmt(totVia), fmt(tot3), fmt(totPar), fmt(totDia)],
+    totalesFila: ['Total', ...totalesPorCategoria.map(fmt), fmt(totDia)],
   });
 }
 
