@@ -1467,6 +1467,7 @@ let filtroEgresosCuenta = 'Efectivo';
 /* ---------- Multi-proyecto (establecimientos) ---------- */
 let currentUser = null;      // { id, email }
 let currentProfile = null;   // { id, email, proyecto_id, is_admin }
+const SUPER_ADMIN_EMAIL = 'diegolsarno@gmail.com';
 let currentProyecto = null;  // { id, nombre }
 let proyectosDisponibles = []; // solo se llena para el admin
 
@@ -4030,11 +4031,11 @@ async function renderUsuarios(){
     <td class="muted">${u.is_admin ? 'Sí' : 'No'}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="abrirAsignarUsuario('${u.id}')">Asignar</button>
-      ${(currentUser && u.id===currentUser.id) ? '' : `<button class="icon-trash-btn" title="Eliminar usuario" onclick="eliminarUsuario('${u.id}')">${TRASH_ICON_SVG}</button>`}
+      ${(currentUser && currentUser.email===SUPER_ADMIN_EMAIL && u.id!==currentUser.id) ? `<button class="icon-trash-btn" title="Eliminar usuario" onclick="eliminarUsuario('${u.id}')">${TRASH_ICON_SVG}</button>` : ''}
     </td></tr>`).join('');
 }
 async function eliminarUsuario(id){
-  if(!currentProfile || !currentProfile.is_admin) return;
+  if(!currentUser || currentUser.email!==SUPER_ADMIN_EMAIL) return;
   const u = usuariosData.find(x=>x.id===id);
   if(!confirm(`¿Eliminar el perfil de ${u ? u.email : 'este usuario'}? Esta acción no se puede deshacer.`)) return;
   try{
