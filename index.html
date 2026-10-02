@@ -2651,10 +2651,15 @@ const TRASH_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" xmlns="h
   <line x1="12" y1="12" x2="12" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
   <line x1="14.4" y1="12" x2="14.4" y2="19" stroke="var(--panel)" stroke-width="1.1"/>
 </svg>`;
-let filtroCajaCuentaVal = ''; let filtroVentasMesVal = '';
+let filtroCajaCuentaVal = ''; let filtroVentasMesVal = ''; let filtroVentasMesManual = false;
 function renderVentasCaja(){
   const vd = data.ventasDiarias;
-  const mesesDisponibles = Array.from(new Set(vd.map(v=>monthKey(v.fecha)))).filter(Boolean).sort().reverse(); if(!filtroVentasMesVal || !mesesDisponibles.includes(filtroVentasMesVal)){ filtroVentasMesVal = mesesDisponibles[0] || ''; } const selMes = document.getElementById('filtroVentasMes'); selMes.innerHTML = '<option value="__ANIO__">Acumulado año</option>' + mesesDisponibles.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join(''); selMes.value = filtroVentasMesVal; const vdMes = filtroVentasMesVal==='__ANIO__' ? vd : vd.filter(v=> monthKey(v.fecha)===filtroVentasMesVal); const totalVentas = vdMes.reduce((s,v)=> s + v.total + v.kioscoEfectivo+v.kioscoBco+v.kioscoMp + (v.chiringoEfectivo||0)+(v.chiringoMp||0) + v.viandasTotal + v.terceirosTotal + v.parrillaEfectivo + v.parrillaMp, 0);
+  const hoyV = new Date();
+  const mesActualV = hoyV.getFullYear() + '-' + String(hoyV.getMonth()+1).padStart(2,'0');
+  const mesesDisponibles = Array.from(new Set(vd.map(v=>monthKey(v.fecha)))).filter(Boolean);
+  if(!mesesDisponibles.includes(mesActualV)) mesesDisponibles.push(mesActualV);
+  mesesDisponibles.sort().reverse();
+  if(!filtroVentasMesManual || !mesesDisponibles.includes(filtroVentasMesVal)){ filtroVentasMesVal = mesActualV; } const selMes = document.getElementById('filtroVentasMes'); selMes.innerHTML = '<option value="__ANIO__">Acumulado año</option>' + mesesDisponibles.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join(''); selMes.value = filtroVentasMesVal; const vdMes = filtroVentasMesVal==='__ANIO__' ? vd : vd.filter(v=> monthKey(v.fecha)===filtroVentasMesVal); const totalVentas = vdMes.reduce((s,v)=> s + v.total + v.kioscoEfectivo+v.kioscoBco+v.kioscoMp + (v.chiringoEfectivo||0)+(v.chiringoMp||0) + v.viandasTotal + v.terceirosTotal + v.parrillaEfectivo + v.parrillaMp, 0);
   const promedioDiario = vdMes.length>0 ? totalVentas/vdMes.length : 0;
   const totalViandas = vdMes.reduce((s,v)=>s+v.viandasTotal,0);
   const total3ros = vdMes.reduce((s,v)=>s+v.terceirosTotal,0);
@@ -2688,7 +2693,7 @@ function renderVentasCaja(){
   }
 
 }
-  document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
+  document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; filtroVentasMesManual = true; renderVentasCaja(); });
 const VENTAS_SECTORES = [
   {key:'restaurante', label:'Restaurante', formas:{Efectivo:v=>v.restauranteEfectivo, Banco:v=>v.restauranteBco, MP:v=>v.restauranteMp}},
   {key:'parrilla', label:'Parrilla', formas:{Efectivo:v=>v.parrillaEfectivo, MP:v=>v.parrillaMp}},
