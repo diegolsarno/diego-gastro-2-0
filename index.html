@@ -1166,8 +1166,12 @@
       <select id="exportarPDFExtra"></select>
     </div>
     <div class="field" id="exportarPDFCamposFormaPago" style="display:none;">
-      <label>Incluir en el reporte</label>
-      <div id="exportarPDFFormaPagoList" style="display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:4px; max-height:160px; overflow:auto;"></div>
+      <label>Sector</label>
+      <div id="exportarPDFSectorList" style="display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:4px;"></div>
+      <label style="margin-top:10px; display:block;">Forma de pago</label>
+      <div id="exportarPDFFormaPagoList" style="display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:4px;"></div>
+      <label style="margin-top:10px; display:block;">Otros conceptos (sin forma de pago)</label>
+      <div id="exportarPDFOtrosList" style="display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:4px;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalExportarPDF')">Cancelar</button>
@@ -2005,8 +2009,10 @@ function abrirExportarPDF(contexto){
     extraSel.value = '';
   }
   if(esFormaPago){
-    const cont = document.getElementById('exportarPDFFormaPagoList');
-    cont.innerHTML = VENTAS_CATEGORIAS.map(c=>`<label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text); text-transform:none; font-size:12.5px;"><input type="checkbox" class="exportarPDFFormaPagoChk" value="${c.key}" checked> ${c.label}</label>`).join('');
+    const chkLabel = (cls, key, label) => `<label style="display:flex; align-items:center; gap:6px; font-weight:400; color:var(--text); text-transform:none; font-size:12.5px;"><input type="checkbox" class="${cls}" value="${key}" checked> ${label}</label>`;
+    document.getElementById('exportarPDFSectorList').innerHTML = VENTAS_SECTORES.map(se=>chkLabel('exportarPDFSectorChk', se.key, se.label)).join('');
+    document.getElementById('exportarPDFFormaPagoList').innerHTML = VENTAS_FORMAS_PAGO.map(fp=>chkLabel('exportarPDFFormaPagoChk', fp, fp)).join('');
+    document.getElementById('exportarPDFOtrosList').innerHTML = VENTAS_OTROS.map(o=>chkLabel('exportarPDFOtrosChk', o.key, o.label)).join('');
   }
   openModal('modalExportarPDF');
 }
@@ -2099,9 +2105,11 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
       if(desde > hasta){ alert('La fecha "desde" no puede ser posterior a "hasta".'); return; }
       if(contexto==='gastos') exportarPDFGastos(desde, hasta);
       else if(contexto==='ventas'){
-        const categoriasSel = [...document.querySelectorAll('.exportarPDFFormaPagoChk:checked')].map(el=>el.value);
-        if(categoriasSel.length===0){ alert('Elegí al menos una forma de pago / categoría para incluir en el reporte.'); return; }
-        exportarPDFVentas(desde, hasta, categoriasSel);
+        const sectoresSel = [...document.querySelectorAll('.exportarPDFSectorChk:checked')].map(el=>el.value);
+        const formasPagoSel = [...document.querySelectorAll('.exportarPDFFormaPagoChk:checked')].map(el=>el.value);
+        const otrosSel = [...document.querySelectorAll('.exportarPDFOtrosChk:checked')].map(el=>el.value);
+        if((sectoresSel.length===0 || formasPagoSel.length===0) && otrosSel.length===0){ alert('Elegí al menos un sector con una forma de pago, u otro concepto para incluir en el reporte.'); return; }
+        exportarPDFVentas(desde, hasta, sectoresSel, formasPagoSel, otrosSel);
       }
       else if(contexto==='egresos'){
         const cuenta = document.getElementById('exportarPDFCuenta').value;
@@ -2651,24 +2659,30 @@ function renderVentasCaja(){
 
 }
   document.getElementById('filtroVentasMes').addEventListener('change', e=>{ filtroVentasMesVal = e.target.value; renderVentasCaja(); });
-const VENTAS_CATEGORIAS = [
-  {key:'restEfectivo', label:'Restaurante Efectivo', get:v=>v.restauranteEfectivo},
-  {key:'restBco', label:'Restaurante Banco', get:v=>v.restauranteBco},
-  {key:'restMp', label:'Restaurante MP', get:v=>v.restauranteMp},
-  {key:'kioscoEfectivo', label:'Kiosco Efectivo', get:v=>v.kioscoEfectivo},
-  {key:'kioscoBco', label:'Kiosco Banco', get:v=>v.kioscoBco},
-  {key:'kioscoMp', label:'Kiosco MP', get:v=>v.kioscoMp},
-  {key:'chiringoEfectivo', label:'Chiringo Efectivo', get:v=>v.chiringoEfectivo||0},
-  {key:'chiringoMp', label:'Chiringo MP', get:v=>v.chiringoMp||0},
-  {key:'parrillaEfectivo', label:'Parrilla Efectivo', get:v=>v.parrillaEfectivo},
-  {key:'parrillaMp', label:'Parrilla MP', get:v=>v.parrillaMp},
+const VENTAS_SECTORES = [
+  {key:'restaurante', label:'Restaurante', formas:{Efectivo:v=>v.restauranteEfectivo, Banco:v=>v.restauranteBco, MP:v=>v.restauranteMp}},
+  {key:'parrilla', label:'Parrilla', formas:{Efectivo:v=>v.parrillaEfectivo, MP:v=>v.parrillaMp}},
+  {key:'kiosco', label:'Kiosco', formas:{Efectivo:v=>v.kioscoEfectivo, Banco:v=>v.kioscoBco, MP:v=>v.kioscoMp}},
+  {key:'chiringo', label:'Chiringo', formas:{Efectivo:v=>v.chiringoEfectivo||0, MP:v=>v.chiringoMp||0}},
+];
+const VENTAS_FORMAS_PAGO = ['Efectivo', 'Banco', 'MP'];
+const VENTAS_OTROS = [
   {key:'viandas', label:'Viandas', get:v=>v.viandasTotal},
   {key:'terceros', label:'3ros Tiempos', get:v=>v.terceirosTotal},
   {key:'impuestosMp', label:'Impuestos MP', get:v=>v.impuestosMp},
   {key:'impuestosBco', label:'Impuestos TC', get:v=>v.impuestosBco},
 ];
-function exportarPDFVentas(desde, hasta, categoriasSel){
-  const categorias = VENTAS_CATEGORIAS.filter(c => !categoriasSel || categoriasSel.includes(c.key));
+function exportarPDFVentas(desde, hasta, sectoresSel, formasPagoSel, otrosSel){
+  const sectores = VENTAS_SECTORES.filter(se => !sectoresSel || sectoresSel.includes(se.key));
+  const formasPago = VENTAS_FORMAS_PAGO.filter(fp => !formasPagoSel || formasPagoSel.includes(fp));
+  const columnasSectores = [];
+  sectores.forEach(se=>{
+    formasPago.forEach(fp=>{
+      if(se.formas[fp]) columnasSectores.push({label: `${se.label} ${fp}`, get: se.formas[fp]});
+    });
+  });
+  const columnasOtros = VENTAS_OTROS.filter(o => !otrosSel || otrosSel.includes(o.key));
+  const categorias = [...columnasSectores, ...columnasOtros];
   const rows = data.ventasDiarias.filter(v=> v.fecha>=desde && v.fecha<=hasta).sort((a,b)=> a.fecha.localeCompare(b.fecha));
   const columnas = ['Fecha', ...categorias.map(c=>c.label), 'Total día'];
   const totalesPorCategoria = categorias.map(()=>0);
