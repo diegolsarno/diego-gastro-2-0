@@ -1953,7 +1953,7 @@ function abrirExportarPDF(contexto){
   const esMes = ['eerr','totales','totalesgastos','calendario','precios'].includes(contexto);
     const esFecha = ['gastos','egresos','ventas','costoslaborales','log'].includes(contexto);
     const esCuenta = contexto==='egresos';
-  const esExtra = ['insumos','recetas','precios'].includes(contexto);
+  const esExtra = ['insumos','recetas','precios','gastos','costoslaborales','calendario','log','menu'].includes(contexto);
   const esFormaPago = contexto==='ventas';
   document.getElementById('exportarPDFCamposFecha').style.display = esFecha ? 'grid' : 'none';
   document.getElementById('exportarPDFCamposMes').style.display = esMes ? 'grid' : 'none';
@@ -2005,6 +2005,21 @@ function abrirExportarPDF(contexto){
       extraLabel.textContent = 'Insumo';
       const nombresUnicos = [...new Set(data.precioHistorico.map(p=>p.insumoNombre))].sort();
       extraSel.innerHTML = '<option value="">Todos los insumos</option>' + nombresUnicos.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    }else if(contexto==='gastos' || contexto==='calendario'){
+      extraLabel.textContent = 'Familia';
+      const familiasGasto = [...new Set(data.familias.map(f=>f.nombre).filter(Boolean))].sort();
+      extraSel.innerHTML = '<option value="">Todas las familias</option>' + familiasGasto.map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+    }else if(contexto==='costoslaborales'){
+      extraLabel.textContent = 'Tipo de personal';
+      extraSel.innerHTML = '<option value="">Todos</option>' + Object.entries(LABELS_TIPO_PERSONAL).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+    }else if(contexto==='log'){
+      extraLabel.textContent = 'Usuario';
+      const usuariosLog = [...new Set((logRowsCache||[]).map(r=>r.usuario).filter(Boolean))].sort();
+      extraSel.innerHTML = '<option value="">Todos los usuarios</option>' + usuariosLog.map(u=>`<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+    }else if(contexto==='menu'){
+      extraLabel.textContent = 'Categoría';
+      const categoriasMenu = [...new Set(data.menu.map(m=>m.categoria).filter(Boolean))].sort();
+      extraSel.innerHTML = '<option value="">Todas las categorías</option>' + categoriasMenu.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
     }
     extraSel.value = '';
   }
@@ -2071,7 +2086,7 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
   const formatoElegido = document.querySelector('input[name="exportarPDFFormato"]:checked');
   exportarFormatoSeleccionado = formatoElegido ? formatoElegido.value : 'pdf';
   try{
-    const esSinFiltro = ['familias','proveedores','usuarios','menu','resumen'].includes(contexto);
+    const esSinFiltro = ['familias','proveedores','usuarios','resumen'].includes(contexto);
     const esMes = ['eerr','totales','totalesgastos','calendario','precios'].includes(contexto);
     if(esSinFiltro){
       if(contexto==='familias') exportarPDFFamilias();
@@ -2087,7 +2102,10 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
       if(contexto==='eerr') exportarPDFEerr(mesDesde, mesHasta);
       else if(contexto==='totales') exportarPDFTotales(mesDesde, mesHasta);
       else if(contexto==='totalesgastos') exportarPDFTotalesGastos(mesDesde, mesHasta);
-      else if(contexto==='calendario') exportarPDFCalendario(mesDesde, mesHasta);
+      else if(contexto==='calendario'){
+        const familia = document.getElementById('exportarPDFExtra').value;
+        exportarPDFCalendario(mesDesde, mesHasta, familia);
+      }
       else if(contexto==='precios'){
         const insumoNombre = document.getElementById('exportarPDFExtra').value;
         exportarPDFPrecios(mesDesde, mesHasta, insumoNombre);
@@ -2098,12 +2116,18 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
     }else if(contexto==='recetas'){
       const categoria = document.getElementById('exportarPDFExtra').value;
       exportarPDFRecetas(categoria);
+    }else if(contexto==='menu'){
+      const categoria = document.getElementById('exportarPDFExtra').value;
+      exportarPDFMenu(categoria);
     }else{
       const desde = document.getElementById('exportarPDFDesde').value;
       const hasta = document.getElementById('exportarPDFHasta').value;
       if(!desde || !hasta){ alert('Elegí el rango de fechas.'); return; }
       if(desde > hasta){ alert('La fecha "desde" no puede ser posterior a "hasta".'); return; }
-      if(contexto==='gastos') exportarPDFGastos(desde, hasta);
+      if(contexto==='gastos'){
+        const familia = document.getElementById('exportarPDFExtra').value;
+        exportarPDFGastos(desde, hasta, familia);
+      }
       else if(contexto==='ventas'){
         const sectoresSel = [...document.querySelectorAll('.exportarPDFSectorChk:checked')].map(el=>el.value);
         const formasPagoSel = [...document.querySelectorAll('.exportarPDFFormaPagoChk:checked')].map(el=>el.value);
@@ -2114,8 +2138,14 @@ document.getElementById('btnConfirmarExportarPDF').addEventListener('click', ()=
       else if(contexto==='egresos'){
         const cuenta = document.getElementById('exportarPDFCuenta').value;
         exportarPDFEgresos(desde, hasta, cuenta);
-      }else if(contexto==='costoslaborales') exportarPDFCostosLaborales(desde, hasta);
-            else if(contexto==='log') exportarPDFLog(desde, hasta);}
+      }else if(contexto==='costoslaborales'){
+        const tipoPersonal = document.getElementById('exportarPDFExtra').value;
+        exportarPDFCostosLaborales(desde, hasta, tipoPersonal);
+      }
+            else if(contexto==='log'){
+        const usuario = document.getElementById('exportarPDFExtra').value;
+        exportarPDFLog(desde, hasta, usuario);
+      }}
     closeModal('modalExportarPDF');
   }catch(e){ alert('Error generando el reporte: ' + e.message); }
 });
@@ -2970,9 +3000,10 @@ function irAGastoDesdeCalendario(gastoId){
   }, 50);
 }
 
-function exportarPDFGastos(desde, hasta){
+function exportarPDFGastos(desde, hasta, familia){
   const rows = data.gastos
     .filter(g=> !esFamiliaCostoLaboral(g.familiaNombre))
+    .filter(g=> !familia || g.familiaNombre===familia)
     .filter(g=>{ const f = g.fechaFc||g.fechaCarga; return f && f>=desde && f<=hasta; })
     .sort((a,b)=> (a.fechaFc||a.fechaCarga||'').localeCompare(b.fechaFc||b.fechaCarga||''));
   const columnas = ['Fecha','Proveedor','Familia','Tipo de gasto','Comprobante','N°','Total'];
@@ -2980,13 +3011,14 @@ function exportarPDFGastos(desde, hasta){
   const total = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
   generarPDFTabla({
     titulo: 'Gastos',
-    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} comprobante(s)`,
+    subtitulo: (familia?`Familia: ${familia} — `:'') + `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} comprobante(s)`,
     columnas, filas,
     totalesFila: ['','','','','','Total', fmt(total)],
   });
 }
-function exportarPDFCostosLaborales(desde, hasta){
+function exportarPDFCostosLaborales(desde, hasta, tipoPersonal){
   const rows = data.gastos.filter(g=> esFamiliaCostoLaboral(g.familiaNombre))
+    .filter(g=> !tipoPersonal || g.tipoPersonal===tipoPersonal)
     .filter(g=>{ const f = g.fechaFc||g.fechaCarga; return f && f>=desde && f<=hasta; })
     .sort((a,b)=> (a.fechaFc||a.fechaCarga||'').localeCompare(b.fechaFc||b.fechaCarga||''));
   const columnas = ['Fecha','Proveedor','Familia','Tipo de personal','Tipo de gasto','Comprobante','N°','Total'];
@@ -2994,7 +3026,7 @@ function exportarPDFCostosLaborales(desde, hasta){
   const total = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
   generarPDFTabla({
     titulo: 'Costos laborales',
-    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} comprobante(s)`,
+    subtitulo: (tipoPersonal?`Tipo de personal: ${labelTipoPersonal(tipoPersonal)} — `:'') + `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} comprobante(s)`,
     columnas, filas,
     totalesFila: ['','','','','','','Total', fmt(total)],
   });
@@ -3089,15 +3121,16 @@ function exportarPDFTotalesGastos(mesDesde, mesHasta){
     totalesFila: ['Total', fmt(totalPeriodo), totalPeriodo>0?'100%':'-'],
   });
 }
-function exportarPDFCalendario(mesDesde, mesHasta){
+function exportarPDFCalendario(mesDesde, mesHasta, familia){
   const rows = data.gastos.filter(g=> g.fechaPago && monthKey(g.fechaPago)>=mesDesde && monthKey(g.fechaPago)<=mesHasta)
+    .filter(g=> !familia || g.familiaNombre===familia)
     .sort((a,b)=> (a.fechaPago||'').localeCompare(b.fechaPago||''));
   const columnas = ['Fecha de pago','Proveedor','Familia','Total'];
   const filas = rows.map(g=> [fmtDate(g.fechaPago), g.proveedorNombre||'-', g.familiaNombre||'-', fmt(g.total)]);
   const total = rows.reduce((s,g)=> s + (Number(g.total)||0), 0);
   generarPDFTabla({
     titulo: 'Calendario de pagos',
-    subtitulo: `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')} — ${rows.length} pago(s)`,
+    subtitulo: (familia?`Familia: ${familia} — `:'') + `Período: ${fmtMes(mesDesde+'-01')} a ${fmtMes(mesHasta+'-01')} — ${rows.length} pago(s)`,
     columnas, filas,
     totalesFila: ['','','Total', fmt(total)],
   });
@@ -3132,8 +3165,8 @@ function exportarPDFRecetas(categoria){
     columnas, filas,
   });
 }
-function exportarPDFMenu(){
-  const rows = data.menu.slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+function exportarPDFMenu(categoria){
+  const rows = data.menu.filter(m=> !categoria || m.categoria===categoria).slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
   const columnas = ['Producto','Categoría','Receta','Precio venta','Costo','Food cost %','Margen $','Margen %','Estado'];
   const filas = rows.map(m=>{
     const c = menuComputed(m);
@@ -3141,7 +3174,7 @@ function exportarPDFMenu(){
   });
   generarPDFTabla({
     titulo: 'Menú',
-    subtitulo: `${rows.length} producto(s)`,
+    subtitulo: (categoria?`Categoría: ${categoria} — `:'') + `${rows.length} producto(s)`,
     columnas, filas,
   });
 }
@@ -3177,15 +3210,16 @@ function exportarPDFUsuarios(){
   const filas = rows.map(u=> [u.email||'-', proyectoNombre(u.proyecto_id)||'Sin asignar', u.is_admin ? 'Sí' : 'No']);
   generarPDFTabla({ titulo: 'Usuarios', subtitulo: `${rows.length} usuario(s)`, columnas, filas });
 }
-function exportarPDFLog(desde, hasta){
+function exportarPDFLog(desde, hasta, usuario){
   const rows = (logRowsCache||[])
     .filter(r=> r.fecha && r.fecha.slice(0,10)>=desde && r.fecha.slice(0,10)<=hasta)
+    .filter(r=> !usuario || r.usuario===usuario)
     .slice().sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
   const columnas = ['Fecha y hora','Usuario','Detalle'];
   const filas = rows.map(r=> [fmtFechaHora(r.fecha), r.usuario, r.detalle]);
   generarPDFTabla({
     titulo: 'Log de actividad',
-    subtitulo: `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} movimiento(s)`,
+    subtitulo: (usuario?`Usuario: ${usuario} — `:'') + `Período: ${fmtDate(desde)} a ${fmtDate(hasta)} — ${rows.length} movimiento(s)`,
     columnas, filas,
   });
 }
