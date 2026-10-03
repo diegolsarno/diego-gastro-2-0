@@ -560,6 +560,7 @@
   <button data-view="rrhhliquidacion">Liquidación mensual</button>
   <button data-view="rrhhaumentos">Aumentos</button>
   <button data-view="rrhhliqfinales">Liquidaciones finales</button>
+  <button data-view="rrhhhistorico">Historico</button>
 </nav>
 
 <main>
@@ -933,6 +934,22 @@
       </table>
       </div>
       <div class="empty" id="emptyRrhhLiqFinales" style="display:none;">Todavía no cargaste liquidaciones finales.</div>
+    </div>
+  </div>
+
+  <!-- ========== RRHH: Historico ========== -->
+  <div class="view" id="view-rrhhhistorico">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Historico</h2>
+      </div>
+      <div class="table-scroll">
+      <table class="eerr-table">
+        <thead id="theadRrhhHistorico"></thead>
+        <tbody id="tblRrhhHistorico"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="emptyRrhhHistorico" style="display:none;">Todavía no hay liquidaciones cargadas en 2026.</div>
     </div>
   </div>
 
@@ -2278,6 +2295,7 @@ function renderAll(){
   renderRrhhLiquidacion();
   renderRrhhAumentos();
   renderRrhhLiqFinales();
+  renderRrhhHistorico();
   if(currentProfile && currentProfile.is_admin) renderUsuarios();
   renderLog();
 }
@@ -4472,6 +4490,26 @@ function renderRrhhAumentos(){
       <td>${fmtPct(pctIncremento)}</td><td class="muted">${fmtPct(ipcAcumulado)}</td>
       <td class="${diferencia<0?'eerr-cell-neg':'eerr-cell-pos'}">${fmtPct(diferencia)}</td>
     </tr>`;
+  }).join('');
+}
+
+function renderRrhhHistorico(){
+  const liqs2026 = data.rrhhLiquidaciones.filter(l=>l.mes && l.mes.startsWith('2026'));
+  const meses = Array.from(new Set(liqs2026.map(l=>l.mes))).sort();
+  const thead = document.getElementById('theadRrhhHistorico');
+  const tbody = document.getElementById('tblRrhhHistorico');
+  const emptyEl = document.getElementById('emptyRrhhHistorico');
+  if(meses.length===0){ thead.innerHTML=''; tbody.innerHTML=''; emptyEl.style.display='block'; return; }
+  emptyEl.style.display='none';
+  thead.innerHTML = `<tr><th>Empleado</th>${meses.map(m=>`<th>${fmtMes(m+'-01')}</th>`).join('')}</tr>`;
+  const empleadosConDatos = data.empleados.filter(e=> liqs2026.some(l=>l.empleadoId===e.id))
+    .slice().sort((a,b)=>(a.apellido||'').localeCompare(b.apellido||''));
+  tbody.innerHTML = empleadosConDatos.map(e=>{
+    const cells = meses.map(m=>{
+      const l = liqs2026.find(x=>x.empleadoId===e.id && x.mes===m);
+      return `<td>${l ? fmt(l.totalMes) : '-'}</td>`;
+    }).join('');
+    return `<tr><td>${escapeHtml(e.apellido)}, ${escapeHtml(e.nombre)}</td>${cells}</tr>`;
   }).join('');
 }
 
