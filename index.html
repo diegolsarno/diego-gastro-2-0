@@ -781,7 +781,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>Total</th><th>Forma de pago</th><th>Estado</th><th></th>
+          <th>Fecha</th><th>Proveedor</th><th>Familia</th><th>Tipo de gasto</th><th>Comprobante</th><th>N°</th><th>IVA</th><th>Otros impuestos</th><th>Total</th><th>Forma de pago</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tblGastos"></tbody>
       </table>
@@ -1386,6 +1386,10 @@
     </div>
     <div class="row2">
       <div class="field"><label>N° comprobante</label><input id="gastoNComprobante" placeholder="Ej: 0001-00001234"></div>
+      <div class="field"><label>IVA</label><input id="gastoIva" type="number" step="0.01" placeholder="0"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Otros impuestos</label><input id="gastoOtrosImpuestos" type="number" step="0.01" placeholder="0"></div>
       <div class="field"><label>Total</label><input id="gastoTotal" type="number" step="0.01" placeholder="0"></div>
     </div>
     <div class="modal-actions">
@@ -1855,7 +1859,7 @@ async function loadAll(){
       proveedorNombre:(g.proveedores && g.proveedores.nombre) ? g.proveedores.nombre : '-',
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
       tipoGasto:g.tipo_gasto, tipoComprobante:g.tipo_comprobante, control:g.control,
-      nComprobante:g.n_comprobante, total:Number(g.total)||0,
+      nComprobante:g.n_comprobante, total:Number(g.total)||0, iva:Number(g.iva)||0, otrosImpuestos:Number(g.otros_impuestos)||0,
       tipoPersonal:g.tipo_personal||'',
     }));
     data.ventasDiarias = ventasD.map(v=>({
@@ -2994,6 +2998,7 @@ function renderGastos(){
     <td>${fmtDate(g.fechaFc||g.fechaCarga)}</td><td>${escapeHtml(g.proveedorNombre)}</td>
     <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
+    <td class="muted">${fmt(g.iva)}</td><td class="muted">${fmt(g.otrosImpuestos)}</td>
     <td><b>${fmt(g.total)}</b></td>
     <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
     <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
@@ -4210,6 +4215,7 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   document.getElementById('gastoTipoComprobante').value = '';
   document.getElementById('gastoNComprobante').value = '';
   document.getElementById('gastoTotal').value = '';
+  document.getElementById('gastoIva').value = ''; document.getElementById('gastoOtrosImpuestos').value = '';
   document.getElementById('fieldGastoTipoPersonal').style.display = 'none';
   document.getElementById('gastoTipoPersonal').value = '';
   openModal('modalGasto');
@@ -4742,6 +4748,7 @@ async function deleteLiqFinal(id){
   document.getElementById('gastoTipoComprobante').value = g.tipoComprobante||'';
   document.getElementById('gastoNComprobante').value = g.nComprobante||'';
   document.getElementById('gastoTotal').value = g.total;
+  document.getElementById('gastoIva').value = g.iva||''; document.getElementById('gastoOtrosImpuestos').value = g.otrosImpuestos||'';
   document.getElementById('fieldGastoTipoPersonal').style.display = gastoModalContext==='laborales' ? 'block' : 'none';
   document.getElementById('gastoTipoPersonal').value = g.tipoPersonal||'';
   openModal('modalGasto');
@@ -4755,9 +4762,10 @@ async function saveGasto(){
   const tipo_gasto = document.getElementById('gastoTipoGasto').value.trim();
   const tipo_comprobante = document.getElementById('gastoTipoComprobante').value.trim();
   const n_comprobante = document.getElementById('gastoNComprobante').value.trim();
+  const iva = Number(document.getElementById('gastoIva').value)||0; const otros_impuestos = Number(document.getElementById('gastoOtrosImpuestos').value)||0;
   const total = Number(document.getElementById('gastoTotal').value)||0; const camposObligatoriosGasto = ['gastoProveedor','gastoFamilia','gastoTipoGasto','gastoTipoComprobante','gastoNComprobante','gastoTotal']; let faltantesGasto = []; camposObligatoriosGasto.forEach(cid=>{ const el = document.getElementById(cid); const vacio = !el.value || !el.value.trim(); el.classList.toggle('campo-error', vacio); if(vacio) faltantesGasto.push(cid); }); if(faltantesGasto.length>0){ alert('Completá todos los campos obligatorios antes de guardar.'); return; }
   const tipo_personal = gastoModalContext==='laborales' ? (document.getElementById('gastoTipoPersonal').value || null) : null;
-  const payload = {fecha_fc, fecha_carga, fecha_pago, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, total, tipo_personal};
+  const payload = {fecha_fc, fecha_carga, fecha_pago, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, iva, otros_impuestos, total, tipo_personal};
   try{
     if(id){
       const {error} = await supa.from('gastos').update(payload).eq('id', id);
