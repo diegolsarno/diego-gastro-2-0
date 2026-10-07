@@ -1,17 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import nodemailer from 'nodemailer';
 import { gzipSync } from 'node:zlib';
 
 const SUPABASE_URL = 'https://idcndgiyylskkzkxlbnf.supabase.co';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
-const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
-const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
-const DESTINO = process.env.BACKUP_DESTINO || GMAIL_USER;
+const BUCKET = 'backups';
 
-if (!SERVICE_ROLE_KEY || !GMAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
-  console.error('Faltan variables de entorno');
+if (!SERVICE_ROLE_KEY) {
+  console.error('Falta SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 
@@ -61,21 +56,19 @@ async function main() {
     contenido = gzipSync(contenido);
     nombreArchivo += '.gz';
   }
-  if (contenido.length > 24 * 1024 * 1024) throw new Error('El backup pesa mas de 24 MB, no entra como adjunto de Gmail');
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { type: 'OAuth2', user: GMAIL_USER, clientId: GMAIL_CLIENT_ID, clientSecret: GMAIL_CLIENT_SECRET, refreshToken: GMAIL_REFRESH_TOKEN }
-  });
+  const { error: eb } = await supa.storage.createBucket(BUCKET, { public: false });
+  if (eb && !/already exists|duplicate/i.test(eb.message)) throw eb;
+  const { error: eu } = await supa.storage.from(BUCKET).upload(nombreArchivo, contenido, { upsert: true, contentType: 'application/octet-stream' });
+  if (eu) throw eu;
+  console.log('Backup guardado: ' + BUCKET + '/' + nombreArchivo + ' (' + contenido.length + ' bytes)');
+  console.log(resumen.join('\n'));
 
-  await transporter.sendMail({
-    from: '"Brocoli PMS" <' + GMAIL_USER + '>',
-    to: DESTINO,
-    subject: 'Backup de datos Brocoli PMS - ' + fecha,
-    text: 'Backup diario de los datos de la app (' + fecha + ').\n\nContenido:\n' + resumen.join('\n') + '\n\nBrocoli PMS',
-    attachments: [{ filename: nombreArchivo, content: contenido }]
-  });
-  console.log('Backup enviado a ' + DESTINO + ' (' + nombreArchivo + ', ' + contenido.length + ' bytes)');
+  // Conserva solo los ultimos 10
+  const { data: lista, error: el } = await supa.storage.from(BUCKET).list('', { limit: 1000 });
+  if (el) throw el;
+  const viejos = lista.map(f => f.name).filter(n => n.startsWith('backup-brocoli-')).sort().reverse().slice(10);
+  if (viejos.length) await supa.storage.from(BUCKET).remove(viejos);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
