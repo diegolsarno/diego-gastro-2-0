@@ -4668,6 +4668,16 @@ async function deleteLiqFinal(id){
       });
       return total;
     }
+    /* Impuestos MP -> caja Mercado Pago; Impuestos TC (impuestos_bco) -> caja Transferencia.
+       Se computan como un gasto mas de esa caja, con la fecha del dia de ventas. */
+    function impuestosComoGastos(cuenta){
+      const campo = cuenta==='MP' ? 'impuestosMp' : (cuenta==='Transferencia' ? 'impuestosBco' : null);
+      if(!campo) return [];
+      const nombre = cuenta==='MP' ? 'Impuestos MP' : 'Impuestos TC';
+      return data.ventasDiarias
+        .filter(v=> (Number(v[campo])||0) > 0)
+        .map(v=> ({ id:'imp-'+campo+'-'+v.id, formaPagoFecha:v.fecha, proveedorNombre:nombre, total:Number(v[campo])||0 }));
+    }
     function renderEgresos(){
       const sel = document.getElementById('filtroEgresosCuenta');
       if(!sel) return;
@@ -4680,6 +4690,7 @@ async function deleteLiqFinal(id){
       const ingresos = totalIngresosCuentaEgresos(cuenta);
       const filas = data.gastos
         .filter(g=> g.formaPago && cuentaEgresoDeFormaPago(g.formaPago)===cuenta)
+        .concat(impuestosComoGastos(cuenta))
         .slice()
         .sort((a,b)=> (a.formaPagoFecha||'').localeCompare(b.formaPagoFecha||'') || String(a.id).localeCompare(String(b.id)));
 
@@ -4714,7 +4725,7 @@ async function deleteLiqFinal(id){
       filtroEgresosCuenta = e.target.value; renderEgresos();
     });
     function exportarPDFEgresos(desde, hasta, cuenta){
-      const todasCuenta = data.gastos.filter(g=> g.formaPago && cuentaEgresoDeFormaPago(g.formaPago)===cuenta);
+      const todasCuenta = data.gastos.filter(g=> g.formaPago && cuentaEgresoDeFormaPago(g.formaPago)===cuenta).concat(impuestosComoGastos(cuenta));
       const rows = todasCuenta
         .filter(g=> g.formaPagoFecha && g.formaPagoFecha>=desde && g.formaPagoFecha<=hasta)
         .sort((a,b)=> (a.formaPagoFecha||'').localeCompare(b.formaPagoFecha||''));
