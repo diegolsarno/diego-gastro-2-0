@@ -1854,7 +1854,7 @@ async function loadAll(){
       pctAumento: (p.pct_aumento===null || p.pct_aumento===undefined) ? null : Number(p.pct_aumento),
     }));
     data.gastos = gastosD.map(g=>({
-      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago, formaPagoFecha:g.forma_pago_fecha,
+      id:g.id, fechaFc:g.fecha_fc, fechaCarga:g.fecha_carga, fechaPago:g.fecha_pago, formaPago:g.forma_pago, formaPagoFecha:g.forma_pago_fecha, echeckNumero:g.echeck_numero||'',
       proveedorId:g.proveedor_id, familiaId:g.familia_id,
       proveedorNombre:(g.proveedores && g.proveedores.nombre) ? g.proveedores.nombre : '-',
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
@@ -3000,7 +3000,7 @@ function renderGastos(){
     <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td class="muted">${fmt(g.iva)}</td><td class="muted">${fmt(g.otrosImpuestos)}</td>
     <td><b>${fmt(g.total)}</b></td>
-    <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button></td>
+    <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button>${g.formaPago==='E-check' && g.echeckNumero ? `<small class="muted" style="margin-left:4px; font-size:10.5px;" title="N° de e-check">#${escapeHtml(g.echeckNumero)}</small>` : ''}</td>
     <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
@@ -4641,11 +4641,35 @@ async function deleteLiqFinal(id){
         });
       },0);
     }
-    async function setFormaPago(id, metodo){
+    function pedirNumeroEcheck(id){
+      const g = data.gastos.find(x=>x.id===id);
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; display:flex; align-items:center; justify-content:center;';
+      ov.innerHTML = '<div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; width:320px; max-width:90vw;">'
+        + '<h3 style="margin:0 0 12px; font-size:15px;">Número de e-check</h3>'
+        + '<input id="echeckNumInput" type="text" inputmode="numeric" placeholder="N° de e-check" style="width:100%; box-sizing:border-box; background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:9px 11px; border-radius:8px; font-size:14px;">'
+        + '<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">'
+        + '<button type="button" class="btn secondary small" id="echeckCancel">Cancelar</button>'
+        + '<button type="button" class="btn secondary small" id="echeckSkip">Sin número</button>'
+        + '<button type="button" class="btn small" id="echeckSave">Guardar</button></div></div>';
+      document.body.appendChild(ov);
+      const inp = ov.querySelector('#echeckNumInput');
+      inp.value = (g && g.echeckNumero) || '';
+      inp.focus();
+      const cerrar = ()=> ov.remove();
+      ov.querySelector('#echeckCancel').onclick = cerrar;
+      ov.querySelector('#echeckSkip').onclick = ()=>{ cerrar(); setFormaPago(id, 'E-check', ''); };
+      ov.querySelector('#echeckSave').onclick = ()=>{ const v = inp.value.trim(); cerrar(); setFormaPago(id, 'E-check', v); };
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter') ov.querySelector('#echeckSave').click(); if(e.key==='Escape') cerrar(); });
+    }
+    async function setFormaPago(id, metodo, echeckNum){
       document.querySelectorAll('.pago-chip-menu').forEach(el=>el.remove());
+      if(metodo==='E-check' && echeckNum===undefined){ pedirNumeroEcheck(id); return; }
       try{
         const hoy = new Date().toISOString().slice(0,10);
         const payload = metodo ? {forma_pago: metodo, forma_pago_fecha: hoy} : {forma_pago: null, forma_pago_fecha: null};
+        if(metodo==='E-check') payload.echeck_numero = echeckNum || null;
+        else { const gAct = data.gastos.find(x=>x.id===id); if(gAct && gAct.echeckNumero) payload.echeck_numero = null; }
         const {error} = await supa.from('gastos').update(payload).eq('id', id);
         if(error) throw error;
         await loadAll();
