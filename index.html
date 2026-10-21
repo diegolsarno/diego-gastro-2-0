@@ -207,6 +207,12 @@
   .modal.modal-wide{max-width:620px;}
   .field-group-label{font-size:12px; font-weight:700; color:var(--text); margin:16px 0 8px; text-transform:uppercase; letter-spacing:.3px;}
   .field-group-label:first-of-type{margin-top:4px;}
+  .caja-popover{position:fixed; z-index:9999; width:420px; max-width:92vw; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; box-shadow:0 12px 36px rgba(0,0,0,.35); pointer-events:none; display:none;}
+  .caja-popover h4{margin:0 0 6px; font-size:15px;}
+  .caja-popover .field-group-label{margin:12px 0 6px;}
+  .caja-popover .cp-row{display:grid; gap:8px;}
+  .caja-popover .cp-val{background:var(--panel2); border:1px solid var(--border); border-radius:7px; padding:7px 10px; font-size:13.5px; color:var(--text);}
+  .caja-popover .cp-lbl{font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:3px;}
   .ingr-row{border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px; background:var(--panel2);}
   .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
@@ -2714,7 +2720,7 @@ function renderVentasCaja(){
       const totalDia = v.total + kioscoTotal + chiringoTotal + v.viandasTotal + v.terceirosTotal + parrillaTotal;
       const claseFila = monthKey(v.fecha)!==mesActualV ? ' class="fila-mes-anterior"' : '';
       return `<tr${claseFila}>
-        <td>${fmtDate(v.fecha)}</td><td>${fmt(v.total)}</td><td>${fmt(kioscoTotal)}</td><td>${fmt(chiringoTotal)}</td>
+        <td class="fecha-hover" data-caja-id="${v.id}" style="cursor:default;">${fmtDate(v.fecha)}</td><td>${fmt(v.total)}</td><td>${fmt(kioscoTotal)}</td><td>${fmt(chiringoTotal)}</td>
         <td>${fmt(v.viandasTotal)}<span class="muted"> (${v.viandasCantidad})</span></td>
         <td>${fmt(v.terceirosTotal)}<span class="muted"> (${v.terceirosCantidad})</span></td>
         <td>${fmt(parrillaTotal)}</td><td><b>${fmt(totalDia)}</b></td>
@@ -2885,6 +2891,53 @@ function renderTotales(){
     <td class="total-mes">${fmt(totalGeneral.mes)}</td>
   </tr>`;
 }
+
+
+/* ---------- Detalle de caja al pasar el mouse por la fecha (solo lectura) ---------- */
+(function(){
+  const pop = document.createElement('div');
+  pop.className = 'caja-popover';
+  document.body.appendChild(pop);
+  const celda = (lbl, val)=> `<div><div class="cp-lbl">${lbl}</div><div class="cp-val">${val}</div></div>`;
+  const grupo = (titulo, items)=> `<div class="field-group-label">${titulo}</div><div class="cp-row" style="grid-template-columns:repeat(${items.length},1fr);">${items.map(i=>celda(i[0], i[1])).join('')}</div>`;
+  function html(v){
+    const kiosco = [['Efectivo', fmt(v.kioscoEfectivo)]];
+    if(v.kioscoBco) kiosco.push(['Banco', fmt(v.kioscoBco)]);
+    kiosco.push(['MP', fmt(v.kioscoMp)]);
+    return `<h4>Caja del ${fmtDate(v.fecha)}</h4>`
+      + grupo('Restaurante', [['Efectivo', fmt(v.restauranteEfectivo)], ['Banco', fmt(v.restauranteBco)], ['MP', fmt(v.restauranteMp)]])
+      + grupo('Kiosco', kiosco)
+      + grupo('Chiringo', [['Efectivo', fmt(v.chiringoEfectivo||0)], ['MP', fmt(v.chiringoMp||0)]])
+      + grupo('Parrilla', [['Efectivo', fmt(v.parrillaEfectivo)], ['MP', fmt(v.parrillaMp)]])
+      + grupo('Viandas y 3ros tiempos', [['Cantidad de viandas', v.viandasCantidad], ['Cantidad de 3ros tiempos', v.terceirosCantidad]]);
+  }
+  function mostrar(td){
+    const v = data.ventasDiarias.find(x=> String(x.id)===td.dataset.cajaId);
+    if(!v) return;
+    pop.innerHTML = html(v);
+    pop.style.display = 'block';
+    const r = td.getBoundingClientRect();
+    const h = pop.offsetHeight, w = pop.offsetWidth;
+    let left = r.right + 10;
+    if(left + w > window.innerWidth - 8) left = Math.max(8, r.left - w - 10);
+    let top = r.top - 10;
+    top = Math.min(top, window.innerHeight - h - 8);
+    top = Math.max(8, top);
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+  }
+  const ocultar = ()=>{ pop.style.display = 'none'; };
+  const tbody = document.getElementById('tblVentas');
+  tbody.addEventListener('mouseover', e=>{
+    const td = e.target.closest && e.target.closest('td.fecha-hover');
+    if(td) mostrar(td);
+  });
+  tbody.addEventListener('mouseout', e=>{
+    const td = e.target.closest && e.target.closest('td.fecha-hover');
+    if(td && !td.contains(e.relatedTarget)) ocultar();
+  });
+  window.addEventListener('scroll', ocultar, true);
+})();
 
 /* ---------- Modal: Agregar caja diaria ---------- */
 function fechaVentaExiste(fecha){
