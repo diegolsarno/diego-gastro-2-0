@@ -4462,8 +4462,8 @@ function renderRrhhLiquidacion(){
     const ipcMonto = totalAnterior * ipcRate;
     const aumentoMonto = totalAnterior * aumentoRate;
     const totalMesCalc = stored ? stored.totalMes : (totalAnterior + ipcMonto + aumentoMonto + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0));
-    const recibo = stored ? stored.recibo : (totalMesCalc - (ev.adelantos||0));
-    const cash = stored ? stored.cash : Math.round(recibo);
+    const recibo = stored ? stored.recibo : 0;
+    const cash = totalMesCalc - (ev.adelantos||0) - recibo;
     return `<tr>
       <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td>
       <td class="muted">${fmt(totalAnterior)}</td>
@@ -4475,7 +4475,7 @@ function renderRrhhLiquidacion(){
       <td class="muted">${fmt(ev.plusVacacional||0)}</td>
       <td><b>${fmt(totalMesCalc)}</b></td>
       <td class="muted">${fmt(ev.adelantos||0)}</td>
-      <td>${fmt(recibo)}</td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${recibo||''}" placeholder="0" onchange="guardarReciboLiquidacion('${e.id}', this.value)"></td>
       <td><b>${fmt(cash)}</b></td>
       <td>${stored ? `<input type="checkbox" ${stored.pagado?'checked':''} onchange="toggleLiquidacionPagada('${stored.id}', this.checked)">` : '<span class="muted">sin calcular</span>'}</td>
     </tr>`;
@@ -4507,9 +4507,9 @@ document.getElementById('btnCalcularLiquidacion').addEventListener('click', asyn
       const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhLiqMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
       const totalAnterior = totalMesAnteriorEmpleado(e.id, filtroRrhhLiqMesVal);
       const totalMes = totalAnterior + totalAnterior*ipcRate + totalAnterior*aumentoRate + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0);
-      const recibo = totalMes - (ev.adelantos||0);
-      const cash = Math.round(recibo);
       const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
+      const recibo = existing ? existing.recibo : 0;
+      const cash = totalMes - (ev.adelantos||0) - recibo;
       const payload = {total_mes:totalMes, recibo:recibo, cash:cash};
       if(existing){
         const {error} = await supa.from('rrhh_liquidaciones').update(payload).eq('id', existing.id);
@@ -4522,6 +4522,31 @@ document.getElementById('btnCalcularLiquidacion').addEventListener('click', asyn
     await loadAll();
   }catch(e){ alert('Error calculando la liquidación: ' + e.message); }
 });
+/* Recibo: se completa a mano. Cash = Total mes - Adelantos - Recibo. */
+async function guardarReciboLiquidacion(empleadoId, valorStr){
+  const recibo = Number(valorStr) || 0;
+  try{
+    const mes = filtroRrhhLiqMesVal;
+    const ev = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===mes) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+    const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===mes);
+    let totalMes;
+    if(existing){ totalMes = existing.totalMes; }
+    else{
+      const param = data.rrhhParametrosMes.find(p=>p.mes===mes);
+      const totalAnterior = totalMesAnteriorEmpleado(empleadoId, mes);
+      totalMes = totalAnterior + totalAnterior*(param?param.ipcRate:0) + totalAnterior*(param?param.aumentoRate:0) + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0);
+    }
+    const cash = totalMes - (ev.adelantos||0) - recibo;
+    if(existing){
+      const {error} = await supa.from('rrhh_liquidaciones').update({recibo, cash}).eq('id', existing.id);
+      if(error) throw error;
+    }else{
+      const {error} = await supa.from('rrhh_liquidaciones').insert({empleado_id:empleadoId, mes, proyecto_id:currentProyecto.id, total_mes:totalMes, recibo, cash});
+      if(error) throw error;
+    }
+    await loadAll();
+  }catch(e){ alert('Error guardando el recibo: ' + e.message); }
+}
 async function toggleLiquidacionPagada(id, pagado){
   try{
     const {error} = await supa.from('rrhh_liquidaciones').update({pagado}).eq('id', id);
