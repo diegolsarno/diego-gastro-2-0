@@ -3462,7 +3462,7 @@ function renderTotalesGastos(){
   tbody.innerHTML = entries.map(([nombre,total])=>{
     const pct = totalPeriodo>0 ? total/totalPeriodo : null;
     return `<tr><td>${escapeHtml(nombre)}</td><td><b>${fmt(total)}</b></td><td class="muted">${pct===null?'-':fmtPct(pct)}</td></tr>`;
-  }).join('');
+  }).join('') + `<tr style="border-top:2px solid var(--border);"><td><b>TOTAL</b></td><td><b>${fmt(totalPeriodo)}</b></td><td class="muted">${totalPeriodo>0?'100%':'-'}</td></tr>`;
 
   const palette = ['#4f8cff','#2ecc71','#f1c40f','#e67e22','#e74c3c','#9b59b6','#1abc9c','#e84393','#00b894','#fdcb6e','#0984e3','#6c5ce7'];
   const chartEntries = entries.filter(([,total])=> total>0);
