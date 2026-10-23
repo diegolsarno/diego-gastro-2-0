@@ -871,7 +871,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Apellido</th><th>Nombre</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Plus vacacional</th><th>Adelantos</th>
+          <th>Apellido</th><th>Nombre</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Adelantos</th>
         </tr></thead>
         <tbody id="tblRrhhNovedades"></tbody>
       </table>
@@ -896,7 +896,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Apellido</th><th>Nombre</th><th>Mes anterior</th><th>IPC</th><th>Aumento</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Plus vac.</th><th>Total mes</th><th>Adelantos</th><th>Recibo</th><th>Cash</th><th>Pagado</th>
+          <th>Apellido</th><th>Nombre</th><th>Mes anterior</th><th>IPC</th><th>Aumento</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Total mes</th><th>Adelantos</th><th>Recibo</th><th>Cash</th><th>Pagado</th>
         </tr></thead>
         <tbody id="tblRrhhLiquidacion"></tbody>
       </table>
@@ -4405,7 +4405,6 @@ function renderRrhhNovedades(){
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.horasExtra||''}" placeholder="0" onchange="guardarEventual('${e.id}','horas_extra',this.value)"></td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.feriados||''}" placeholder="0" onchange="guardarEventual('${e.id}','feriados',this.value)"></td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.ausencias||''}" placeholder="0" onchange="guardarEventual('${e.id}','ausencias',this.value)"></td>
-      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.plusVacacional||''}" placeholder="0" onchange="guardarEventual('${e.id}','plus_vacacional',this.value)"></td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.adelantos||''}" placeholder="0" onchange="guardarEventual('${e.id}','adelantos',this.value)"></td>
     </tr>`;
   }).join('');
@@ -4473,7 +4472,6 @@ function renderRrhhLiquidacion(){
       <td class="muted">${fmt(ev.horasExtra||0)}</td>
       <td class="muted">${fmt(ev.feriados||0)}</td>
       <td class="muted">${fmt(ev.ausencias||0)}</td>
-      <td class="muted">${fmt(ev.plusVacacional||0)}</td>
       <td><b>${fmt(totalMesCalc)}</b></td>
       <td class="muted">${fmt(ev.adelantos||0)}</td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${recibo||''}" placeholder="0" onchange="guardarReciboLiquidacion('${e.id}', this.value)"></td>
