@@ -380,6 +380,12 @@
     mask-position:center;
     mask-size:contain;
   }
+  .splash-powered{
+    position:absolute; right:22px; bottom:16px; font-size:11px; letter-spacing:.04em; font-weight:600;
+    color:#014782; opacity:0; transform-origin:right bottom;
+    filter:drop-shadow(0 0 8px rgba(255,255,255,.95)) drop-shadow(0 0 16px rgba(255,255,255,.8));
+    animation: splashLogoIn 3s cubic-bezier(.2,.8,.3,1) forwards;
+  }
   @keyframes splashLogoIn{
     to{ opacity:1; transform:scale(1); }
   }
@@ -390,6 +396,7 @@
 <div id="splashScreen">
   <div id="splashBg"></div>
   <div class="splash-logo splash-logo-mask" role="img" aria-label="Nido Sta. Barbara"></div>
+  <div class="splash-powered">Powered by Diego L. Sarno</div>
 </div>
 
 <!-- ============================================================
