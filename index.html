@@ -544,7 +544,7 @@
   </div>
   <div class="user-chip">
     <span id="userEmail"></span>
-    <button class="btn secondary small app-hidden" id="btnCambiarProyecto" onclick="volverAlPicker()">🔀 Cambiar establecimiento</button>
+    <button class="btn secondary small app-hidden" id="btnCambiarProyecto" onclick="volverAlPicker()">🔀 Cambiar Local</button>
     <button class="btn secondary small" id="btnThemeToggle" onclick="toggleTheme()">🌙</button>
     <button class="btn secondary small" id="btnLogoutHeader" onclick="doLogout()">Cerrar sesión</button>
   </div>
@@ -2258,7 +2258,7 @@ const RAIL_ICONS = { costo:['💰','Costo'], administracion:['📊','Administrac
 function renderRail(cur){
   const rail = document.getElementById('sideRail'); if(!rail) return;
   const hc=document.getElementById('btnCambiarProyecto'); const canSwitch = !!(hc && !hc.classList.contains('app-hidden'));
-  rail.innerHTML = Object.keys(RAIL_ICONS).map(k=>`<button type="button" class="${k===cur?'active':''}" data-go="${k}" title="${RAIL_ICONS[k][1]}"><span class="ri">${RAIL_ICONS[k][0]}</span><span class="rl">${RAIL_ICONS[k][1]}</span></button>`).join('') + (canSwitch?`<button type="button" class="rail-cambiar" title="Cambiar establecimiento" onclick="volverAlPicker()"><span class="ri">🔀</span><span class="rl">Cambiar establecimiento</span></button>`:'') + `<button type="button" class="rail-logout" title="Cerrar sesión" onclick="doLogout()"><span class="ri"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.1 6.2A9 9 0 1 1 5.1 17.8"/><path d="M17 12H8M11.5 8.5L8 12l3.5 3.5"/></svg></span><span class="rl">Cerrar sesión</span></button>`;
+  rail.innerHTML = Object.keys(RAIL_ICONS).map(k=>`<button type="button" class="${k===cur?'active':''}" data-go="${k}" title="${RAIL_ICONS[k][1]}"><span class="ri">${RAIL_ICONS[k][0]}</span><span class="rl">${RAIL_ICONS[k][1]}</span></button>`).join('') + (canSwitch?`<button type="button" class="rail-cambiar" title="Cambiar Local" onclick="volverAlPicker()"><span class="ri">🔀</span><span class="rl">Cambiar Local</span></button>`:'') + `<button type="button" class="rail-logout" title="Cerrar sesión" onclick="doLogout()"><span class="ri"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.1 6.2A9 9 0 1 1 5.1 17.8"/><path d="M17 12H8M11.5 8.5L8 12l3.5 3.5"/></svg></span><span class="rl">Cerrar sesión</span></button>`;
   rail.querySelectorAll('button[data-go]').forEach(b=>b.addEventListener('click', ()=> activateSection(b.dataset.go)));
   const hb=document.getElementById('btnLogoutHeader'); if(hb) hb.style.display='none';
   if(hc) hc.style.display='none';
