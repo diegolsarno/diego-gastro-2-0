@@ -549,13 +549,13 @@
       <div class="home-tile-icon">📊</div>
       <div class="home-tile-label">Administración</div>
     </button>
-    <button class="home-tile" data-section="parametros">
-      <div class="home-tile-icon">⚙️</div>
-      <div class="home-tile-label">Parámetros</div>
-    </button>
     <button class="home-tile" data-section="rrhh">
       <div class="home-tile-icon">👥</div>
       <div class="home-tile-label">RRHH</div>
+    </button>
+    <button class="home-tile" data-section="parametros">
+      <div class="home-tile-icon">⚙️</div>
+      <div class="home-tile-label">Parámetros</div>
     </button>
   </div>
   <div style="width:100%; max-width:1200px; margin-top:32px;">
@@ -2243,7 +2243,7 @@ function activateSection(section){
     if(defBtn) defBtn.classList.add('active');
   }
 }
-const RAIL_ICONS = { costo:['💰','Costo'], administracion:['📊','Administración'], parametros:['⚙️','Parámetros'], rrhh:['👥','RRHH'] };
+const RAIL_ICONS = { costo:['💰','Costo'], administracion:['📊','Administración'], rrhh:['👥','RRHH'], parametros:['⚙️','Parámetros'] };
 function renderRail(cur){
   const rail = document.getElementById('sideRail'); if(!rail) return;
   const hc=document.getElementById('btnCambiarProyecto'); const canSwitch = !!(hc && !hc.classList.contains('app-hidden'));
