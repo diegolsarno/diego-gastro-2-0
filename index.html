@@ -378,6 +378,8 @@
     transition: opacity 2s ease;
   }
   #splashScreen.splash-out{ opacity:0; pointer-events:none; }
+  #splashScreen.splash-ready #splashBg{ opacity:.23; }
+  #splashScreen:not(.splash-ready) .splash-logo, #splashScreen:not(.splash-ready) .splash-powered{ animation-play-state:paused; }
   #splashScreen.splash-hidden{ display:none; }
   .splash-logo{
     width:min(95vw, 598px); height:auto;
@@ -386,7 +388,7 @@
     position:relative; filter:drop-shadow(0 0 14px rgba(255,255,255,.95)) drop-shadow(0 0 30px rgba(255,255,255,.8));
   }
   #splashBg{
-    position:absolute; inset:0; opacity:.23;
+    position:absolute; inset:0; opacity:0; transition:opacity 3s cubic-bezier(.2,.8,.3,1);
     background:url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1920&q=70') center/cover no-repeat;
   }
   .splash-logo-mask{
@@ -418,6 +420,15 @@
   <div id="splashBg"></div>
   <div class="splash-logo splash-logo-mask" role="img" aria-label="Nido Sta. Barbara"></div>
   <div class="splash-powered">Powered by Diego L. Sarno</div>
+  <script>
+  /* Foto y logo aparecen juntos: se espera a que la foto cargue (máx. 3s) */
+  window.__splashReady = new Promise(function(res){
+    var done=false, go=function(){ if(done) return; done=true; var sp=document.getElementById('splashScreen'); if(sp) sp.classList.add('splash-ready'); res(); };
+    var img=new Image(); img.onload=go; img.onerror=go;
+    img.src='https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1920&q=70';
+    setTimeout(go,3000);
+  });
+  </script>
 </div>
 
 <!-- ============================================================
@@ -5181,14 +5192,14 @@ document.querySelectorAll('.overlay').forEach(ov=>{
   const HOLD_MS = 6000;   // 3s de aparicion gradual + 3s visible fijo
   const FADE_MS = 2000;   // luego se difumina en 2 segundos
   window.addEventListener('load', ()=>{
-    setTimeout(()=>{
+    (window.__splashReady||Promise.resolve()).then(()=>setTimeout(()=>{
       splash.classList.add('splash-out');
       setTimeout(()=>{
         splash.classList.add('splash-hidden');
         const login = document.getElementById('loginScreen');
         if(login) login.classList.add('login-in');
       }, FADE_MS);
-    }, HOLD_MS);
+    }, HOLD_MS));
   });
 })();
 </script>
