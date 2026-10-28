@@ -1058,7 +1058,7 @@
       </div>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>Nombre</th><th>Familia</th><th>Tipo de gasto</th><th></th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Familia</th><th>Tipo de gasto</th><th>Fecha de pago</th><th></th></tr></thead>
         <tbody id="tblProveedores"></tbody>
       </table>
       </div>
@@ -1278,6 +1278,7 @@
       <div class="field"><label>Familia</label><select id="proveedorFamilia"><option value="">— sin familia —</option></select></div>
       <div class="field"><label>Tipo de gasto (por defecto)</label><input id="proveedorTipoGastoDefault" placeholder="Ej: COMIDAS"></div>
     </div>
+    <div class="field"><label>Fecha de pago (días desde la fecha de factura)</label><input id="proveedorDiasPago" type="number" min="0" step="1" placeholder="Ej: 30 (vacío = sin plazo)"></div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="cerrarModalProveedor()">Cancelar</button>
       <button class="btn" onclick="saveProveedor()">Guardar</button>
@@ -1873,7 +1874,7 @@ async function loadAll(){
       safeQuery(supa.from('precios_viandas_3t').select('*').eq('proyecto_id', pid).order('mes'), 'precios_viandas_3t'),
     ]);
 
-    data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||''}));
+    data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||'', diasPago:(p.dias_pago===null||p.dias_pago===undefined)?null:p.dias_pago}));
     data.familias = familiasD.map(f=>({id:f.id, nombre:f.nombre, tipoGasto:f.tipo_gasto}));
     data.precioHistorico = precioHistD.map(p=>({
       id:p.id, mes:p.mes, precio:Number(p.precio),
@@ -3328,8 +3329,8 @@ function exportarPDFFamilias(){
 }
 function exportarPDFProveedores(){
   const rows = data.proveedores.slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
-  const columnas = ['Nombre','Familia','Tipo de gasto'];
-  const filas = rows.map(p=> [p.nombre, p.familiaId?familiaNombrePorId(p.familiaId):'-', p.tipoGastoDefault||'-']);
+  const columnas = ['Nombre','Familia','Tipo de gasto','Fecha de pago'];
+  const filas = rows.map(p=> [p.nombre, p.familiaId?familiaNombrePorId(p.familiaId):'-', p.tipoGastoDefault||'-', (p.diasPago===null||p.diasPago===undefined)?'-':(p.diasPago+' días')]);
   generarPDFTabla({ titulo: 'Proveedores', subtitulo: `${rows.length} proveedor(es)`, columnas, filas });
 }
 function exportarPDFUsuarios(){
@@ -4051,6 +4052,7 @@ function renderProveedores(){
     <td>${escapeHtml(p.nombre)}</td>
     <td class="muted">${p.familiaId ? escapeHtml(familiaNombrePorId(p.familiaId)) : '-'}</td>
     <td class="muted">${escapeHtml(p.tipoGastoDefault||'-')}</td>
+    <td class="muted">${p.diasPago!==null && p.diasPago!==undefined ? (p.diasPago + (p.diasPago===1?' día':' días')) : '-'}</td>
     <td class="actions">
       <button class="btn secondary small" onclick="editProveedor('${p.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteProveedor('${p.id}')">Eliminar</button>
@@ -4062,7 +4064,7 @@ document.getElementById('btnAddProveedor').addEventListener('click', ()=>{
   document.getElementById('proveedorNombre').value = '';
   fillProveedorFamiliaSelect();
   document.getElementById('proveedorFamilia').value = '';
-  document.getElementById('proveedorTipoGastoDefault').value = '';
+  document.getElementById('proveedorTipoGastoDefault').value = ''; document.getElementById('proveedorDiasPago').value = '';
   openModal('modalProveedor');
 });
 function editProveedor(id){
@@ -4072,7 +4074,7 @@ function editProveedor(id){
   document.getElementById('proveedorNombre').value = p.nombre;
   fillProveedorFamiliaSelect();
   document.getElementById('proveedorFamilia').value = p.familiaId||'';
-  document.getElementById('proveedorTipoGastoDefault').value = p.tipoGastoDefault||'';
+  document.getElementById('proveedorTipoGastoDefault').value = p.tipoGastoDefault||''; document.getElementById('proveedorDiasPago').value = (p.diasPago===null||p.diasPago===undefined) ? '' : p.diasPago;
   openModal('modalProveedor');
 }
 /* Flujo de "+ Proveedor" desde el modal de Gasto */
@@ -4085,7 +4087,7 @@ function abrirProveedorDesdeGasto(){
   document.getElementById('proveedorNombre').value = '';
   fillProveedorFamiliaSelect();
   document.getElementById('proveedorFamilia').value = '';
-  document.getElementById('proveedorTipoGastoDefault').value = '';
+  document.getElementById('proveedorTipoGastoDefault').value = ''; document.getElementById('proveedorDiasPago').value = '';
   openModal('modalProveedor');
 }
 function cerrarModalProveedor(){
@@ -4101,13 +4103,19 @@ async function saveProveedor(){
   if(!nombre){ alert('Poné un nombre para el proveedor.'); return; }
   const familia_id = document.getElementById('proveedorFamilia').value || null;
   const tipo_gasto_default = document.getElementById('proveedorTipoGastoDefault').value.trim();
+  const diasRaw = document.getElementById('proveedorDiasPago').value.trim();
+  const dias_pago = diasRaw==='' ? null : Math.max(0, parseInt(diasRaw,10));
+  if(diasRaw!=='' && isNaN(dias_pago)){ alert('Los días de pago deben ser un número.'); return; }
+  const provPayload = {nombre, familia_id, tipo_gasto_default};
+  const _prev = id ? data.proveedores.find(x=>x.id===id) : null;
+  if(dias_pago!==null || (_prev && _prev.diasPago!==null && _prev.diasPago!==undefined)) provPayload.dias_pago = dias_pago;
   try{
     let newId = id;
     if(id){
-      const {error} = await supa.from('proveedores').update({nombre, familia_id, tipo_gasto_default}).eq('id', id);
+      const {error} = await supa.from('proveedores').update(provPayload).eq('id', id);
       if(error) throw error;
     }else{
-      const {data:inserted, error} = await supa.from('proveedores').insert({nombre, familia_id, tipo_gasto_default}).select().single();
+      const {data:inserted, error} = await supa.from('proveedores').insert(provPayload).select().single();
       if(error) throw error;
       newId = inserted.id;
     }
@@ -4283,19 +4291,34 @@ function fillGastoSelects(){
   selF.innerHTML = '<option value="">— sin familia —</option>' + familiasList.map(f=>`<option value="${f.id}">${escapeHtml(f.nombre)}</option>`).join('');
   selF.value = curF;
 }
+let gastoFechaPagoManual = false;
+function calcularFechaPagoDesdeProveedor(){
+  if(gastoFechaPagoManual) return;
+  const pid = document.getElementById('gastoProveedor').value;
+  const p = data.proveedores.find(x=>x.id===pid);
+  const fc = document.getElementById('gastoFechaFc').value;
+  if(!p || p.diasPago===null || p.diasPago===undefined || !fc) return;
+  const d = new Date(fc+'T00:00:00'); d.setDate(d.getDate()+p.diasPago);
+  document.getElementById('gastoFechaPago').value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function aplicarDefaultsProveedorEnGasto(){
+  gastoFechaPagoManual = false;
   const pid = document.getElementById('gastoProveedor').value;
   const p = data.proveedores.find(x=>x.id===pid);
   if(p){
     if(p.familiaId) document.getElementById('gastoFamilia').value = p.familiaId;
     if(p.tipoGastoDefault) document.getElementById('gastoTipoGasto').value = p.tipoGastoDefault;
   }
+  calcularFechaPagoDesdeProveedor();
 }
 document.getElementById('gastoProveedor').addEventListener('change', aplicarDefaultsProveedorEnGasto);
+document.getElementById('gastoFechaFc').addEventListener('change', calcularFechaPagoDesdeProveedor);
+document.getElementById('gastoFechaPago').addEventListener('input', ()=>{ gastoFechaPagoManual = true; });
 document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   gastoModalContext = 'gastos';
   document.getElementById('modalGastoTitle').textContent = 'Nuevo gasto';
   document.getElementById('labelGastoFechaFc').textContent = 'Fecha (factura)';
+  gastoFechaPagoManual = false;
   document.getElementById('gastoId').value = '';
   document.getElementById('gastoFechaFc').value = '';
   document.getElementById('gastoFechaCarga').value = ''; document.getElementById('gastoFechaPago').value = '';
@@ -4887,6 +4910,7 @@ async function deleteLiqFinal(id){
   gastoModalContext = esFamiliaCostoLaboral(g.familiaNombre) ? 'laborales' : 'gastos';
   document.getElementById('modalGastoTitle').textContent = gastoModalContext==='laborales' ? 'Editar costo laboral' : 'Editar gasto';
   document.getElementById('labelGastoFechaFc').textContent = gastoModalContext==='laborales' ? 'Fecha' : 'Fecha (factura)';
+  gastoFechaPagoManual = true;
   document.getElementById('gastoId').value = g.id;
   document.getElementById('gastoFechaFc').value = g.fechaFc||'';
   document.getElementById('gastoFechaCarga').value = g.fechaCarga||''; document.getElementById('gastoFechaPago').value = g.fechaPago||'';
