@@ -84,6 +84,17 @@
   .home-tile:active{ transform:translateY(-2px); }
   .home-tile .home-tile-icon{ font-size:68px; line-height:1; }
   .home-tile .home-tile-label{ font-size:26px; font-weight:800; letter-spacing:.3px; text-align:center; }
+  #sectionScreen{ padding-left:104px; }
+  #sideRail{ position:fixed; left:12px; top:110px; width:80px; display:flex; flex-direction:column; gap:10px; z-index:50; }
+  #sideRail button{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 4px; border:1px solid var(--border); background:var(--panel); border-radius:12px; cursor:pointer; color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.06); transition:transform .15s, box-shadow .15s; }
+  #sideRail button:hover{ transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,.12); }
+  #sideRail .ri{ font-size:22px; line-height:1; }
+  #sideRail .rl{ font-size:9.5px; font-weight:600; color:var(--muted); }
+  @media (max-width:700px){
+    #sectionScreen{ padding-left:0; }
+    #sideRail{ position:static; width:auto; flex-direction:row; justify-content:center; padding:10px 16px 0; }
+    #sideRail button{ flex:1; }
+  }
   .back-bar{ padding:18px 28px 0; }
   .back-bar .btn{ font-weight:600; }
   #mainNav{display:none;}
@@ -507,7 +518,7 @@
 <div id="appRoot" class="app-hidden">
 
 <header>
-  <div>
+  <div id="headerBrand" title="Ir al inicio" style="cursor:pointer;">
     <h1><span id="proyectoNombreHeader">Nido Sta. Barbara</span></h1>
     <div class="sub">Conectado a Supabase</div>
   </div>
@@ -549,9 +560,7 @@
 
 <div id="sectionScreen" class="app-hidden">
 
-<div class="back-bar">
-  <button class="btn secondary small" id="btnBackHome">← Volver al inicio</button>
-</div>
+<div id="sideRail"></div>
 
 <nav id="mainNav">
   <button data-section="costo" class="active">Costo</button>
@@ -2212,6 +2221,7 @@ const SECTION_DEFAULTS = {
   rrhh: 'costoslaborales',
 };
 function activateSection(section){
+  renderRail(section);
   document.querySelectorAll('#mainNav button').forEach(b=>b.classList.toggle('active', b.dataset.section===section));
   document.querySelectorAll('.subnav').forEach(sn=>sn.classList.remove('active'));
   const sub = document.getElementById('subnav-'+section);
@@ -2222,6 +2232,12 @@ function activateSection(section){
     const defBtn = sub.querySelector(`button[data-view="${SECTION_DEFAULTS[section]}"]`);
     if(defBtn) defBtn.classList.add('active');
   }
+}
+const RAIL_ICONS = { costo:['💰','Costo'], administracion:['📊','Administración'], parametros:['⚙️','Parámetros'], rrhh:['👥','RRHH'] };
+function renderRail(cur){
+  const rail = document.getElementById('sideRail'); if(!rail) return;
+  rail.innerHTML = Object.keys(RAIL_ICONS).filter(k=>k!==cur).map(k=>`<button type="button" data-go="${k}" title="${RAIL_ICONS[k][1]}"><span class="ri">${RAIL_ICONS[k][0]}</span><span class="rl">${RAIL_ICONS[k][1]}</span></button>`).join('');
+  rail.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=> activateSection(b.dataset.go)));
 }
 function goHome(){
   document.getElementById('homeScreen').classList.remove('app-hidden');
@@ -2235,7 +2251,7 @@ function goToSection(section){
 document.querySelectorAll('.home-tile').forEach(tile=>{
   tile.addEventListener('click', ()=> goToSection(tile.dataset.section));
 });
-document.getElementById('btnBackHome')?.addEventListener('click', goHome);
+document.getElementById('headerBrand')?.addEventListener('click', ()=>{ if(!document.getElementById('sectionScreen').classList.contains('app-hidden')) goHome(); });
 document.querySelectorAll('#mainNav button').forEach(btn=>{
   btn.addEventListener('click', ()=> activateSection(btn.dataset.section));
 });
