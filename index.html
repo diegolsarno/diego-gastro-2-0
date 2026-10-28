@@ -90,6 +90,9 @@
   #sideRail{ position:fixed; left:12px; top:100px; bottom:16px; width:117px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; padding:12px; background:var(--rail-bg); border:1px solid var(--rail-border); border-radius:20px; z-index:50; }
   #sideRail button{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px; border:1px solid var(--rail-border); background:var(--rail-btn); border-radius:15px; cursor:pointer; color:var(--text); transition:transform .15s, box-shadow .15s; }
   #sideRail .rail-logout{ margin-top:auto; }
+  #sideRail .rail-cambiar{ margin-top:auto; }
+  #sideRail .rail-cambiar + .rail-logout{ margin-top:0; }
+  #sideRail .rail-cambiar .rl{ text-align:center; }
   #sideRail button.active{ background:var(--bg); border-color:var(--bg); border-radius:15px 0 0 15px; margin-right:-13px; padding-right:17px; box-shadow:none; }
   #sideRail button.active .rl{ color:var(--text); }
   #sideRail button:hover{ transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,.12); }
@@ -98,7 +101,7 @@
   @media (max-width:700px){
     #sectionScreen{ padding-left:0; }
     #sideRail{ position:static; width:auto; flex-direction:row; justify-content:center; margin:10px 16px 0; }
-    #sideRail .rail-logout{ margin-top:0; }
+    #sideRail .rail-logout, #sideRail .rail-cambiar{ margin-top:0; }
     #sideRail button.active{ margin-right:0; padding-right:4px; border-radius:15px; }
     #sideRail button{ flex:1; }
   }
@@ -2243,12 +2246,15 @@ function activateSection(section){
 const RAIL_ICONS = { costo:['💰','Costo'], administracion:['📊','Administración'], parametros:['⚙️','Parámetros'], rrhh:['👥','RRHH'] };
 function renderRail(cur){
   const rail = document.getElementById('sideRail'); if(!rail) return;
-  rail.innerHTML = Object.keys(RAIL_ICONS).map(k=>`<button type="button" class="${k===cur?'active':''}" data-go="${k}" title="${RAIL_ICONS[k][1]}"><span class="ri">${RAIL_ICONS[k][0]}</span><span class="rl">${RAIL_ICONS[k][1]}</span></button>`).join('') + `<button type="button" class="rail-logout" title="Cerrar sesión" onclick="doLogout()"><span class="ri"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.1 6.2A9 9 0 1 1 5.1 17.8"/><path d="M17 12H8M11.5 8.5L8 12l3.5 3.5"/></svg></span><span class="rl">Cerrar sesión</span></button>`;
+  const hc=document.getElementById('btnCambiarProyecto'); const canSwitch = !!(hc && !hc.classList.contains('app-hidden'));
+  rail.innerHTML = Object.keys(RAIL_ICONS).map(k=>`<button type="button" class="${k===cur?'active':''}" data-go="${k}" title="${RAIL_ICONS[k][1]}"><span class="ri">${RAIL_ICONS[k][0]}</span><span class="rl">${RAIL_ICONS[k][1]}</span></button>`).join('') + (canSwitch?`<button type="button" class="rail-cambiar" title="Cambiar establecimiento" onclick="volverAlPicker()"><span class="ri">🔀</span><span class="rl">Cambiar establecimiento</span></button>`:'') + `<button type="button" class="rail-logout" title="Cerrar sesión" onclick="doLogout()"><span class="ri"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.1 6.2A9 9 0 1 1 5.1 17.8"/><path d="M17 12H8M11.5 8.5L8 12l3.5 3.5"/></svg></span><span class="rl">Cerrar sesión</span></button>`;
   rail.querySelectorAll('button[data-go]').forEach(b=>b.addEventListener('click', ()=> activateSection(b.dataset.go)));
   const hb=document.getElementById('btnLogoutHeader'); if(hb) hb.style.display='none';
+  if(hc) hc.style.display='none';
 }
 function goHome(){
   const hb=document.getElementById('btnLogoutHeader'); if(hb) hb.style.display='';
+  const hcb=document.getElementById('btnCambiarProyecto'); if(hcb) hcb.style.display='';
   document.getElementById('homeScreen').classList.remove('app-hidden');
   document.getElementById('sectionScreen').classList.add('app-hidden');
 }
