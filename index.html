@@ -415,7 +415,9 @@
   .help-contact .hc-icon{ font-size:22px; }
   .help-contact small{ color:var(--muted); font-size:12px; }
   .help-search{ width:100%; box-sizing:border-box; margin-bottom:12px; }
-  .help-body{ max-height:62vh; overflow-y:auto; padding-right:4px; }
+  #modalAyuda .modal{ display:flex; flex-direction:column; max-height:90vh; overflow:hidden; box-sizing:border-box; }
+  #modalAyuda .modal > *{ flex-shrink:0; }
+  .help-body{ flex:1 1 auto !important; min-height:0; overflow-y:auto; padding-right:4px; }
   .help-group{ margin:14px 0 6px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
   .help-body details{ border:1px solid var(--border); border-radius:10px; background:var(--panel2); margin-bottom:6px; }
   .help-body summary{ cursor:pointer; padding:10px 12px; font-weight:600; font-size:14px; }
