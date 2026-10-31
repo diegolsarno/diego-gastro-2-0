@@ -410,6 +410,14 @@
     animation: splashLogoIn 3s cubic-bezier(.2,.8,.3,1) forwards;
   }
   #tblRrhhNovedades input.novedad-llena{ background:#ffe4ea; color:#1a1d24; border-color:#f3b8c6; }
+  .help-search{ width:100%; box-sizing:border-box; margin-bottom:12px; }
+  .help-body{ max-height:62vh; overflow-y:auto; padding-right:4px; }
+  .help-group{ margin:14px 0 6px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .help-body details{ border:1px solid var(--border); border-radius:10px; background:var(--panel2); margin-bottom:6px; }
+  .help-body summary{ cursor:pointer; padding:10px 12px; font-weight:600; font-size:14px; }
+  .help-body details[open] summary{ border-bottom:1px solid var(--border); }
+  .help-body details p{ margin:0; padding:10px 12px; font-size:13px; line-height:1.5; color:var(--text); }
+  .help-empty{ padding:16px 4px; color:var(--muted); font-size:13px; }
   @keyframes splashLogoIn{
     to{ opacity:1; transform:scale(1); }
   }
@@ -516,6 +524,43 @@
 </div>
 
 <!-- MODAL NUEVO PROYECTO -->
+<div class="overlay" id="modalAyuda">
+  <div class="modal modal-wide">
+    <h3>Ayuda y preguntas frecuentes</h3>
+    <input type="search" id="helpSearch" class="help-search" placeholder="Buscar en la ayuda..." oninput="filterHelp(this.value)">
+    <div class="help-body" id="helpBody">
+      <div class="help-group" data-group>General</div>
+      <details><summary>¿Cómo me muevo entre los módulos?</summary><p>Desde la barra lateral izquierda (Costo, Administración, RRHH y Parámetros). El módulo en el que estás se ve como una pestaña. Para volver a la pantalla de inicio, hacé clic en el nombre del local en el encabezado.</p></details>
+      <details><summary>¿Cómo cambio entre modo día y modo noche?</summary><p>Con el botón del sol o la luna en el encabezado. Por defecto la app pasa a modo noche de 20 a 7 hs, pero si lo cambiás a mano se respeta tu elección.</p></details>
+      <details><summary>¿Cómo cierro sesión?</summary><p>Con el botón Cerrar sesión, abajo en la barra lateral (en la pantalla de inicio está en el encabezado).</p></details>
+      <details><summary>¿Cómo cambio de Local?</summary><p>Con el botón Cambiar Local, justo arriba de Cerrar sesión. Solo lo ven los administradores; el resto de los usuarios entra directo al local que tiene asignado.</p></details>
+      <details><summary>Olvidé mi contraseña, ¿qué hago?</summary><p>En la pantalla de ingreso tocá Olvidé mi contraseña, escribí tu mail y te llega un correo con las instrucciones para crear una nueva.</p></details>
+      <details><summary>¿Puedo descargar los listados?</summary><p>Sí. Las vistas principales tienen un botón Exportar para bajar el listado en PDF o en Excel.</p></details>
+      <div class="help-group" data-group>Costo</div>
+      <details><summary>¿Qué muestra el Resumen?</summary><p>Un resumen financiero del mes actual y del mes anterior: ventas totales, egresos totales y resultado neto. Podés cambiar de mes con los botones Mes anterior y Mes siguiente.</p></details>
+      <details><summary>¿Cómo busco un insumo o una receta?</summary><p>En Insumos podés filtrar por texto y por familia, y en Recetas por texto y por categoría, usando los filtros que están arriba del listado.</p></details>
+      <details><summary>¿Cómo agrego un insumo, una receta o un producto del menú?</summary><p>Con el botón + Agregar de cada pestaña (Insumos, Recetas, Menú). Para cargar un precio nuevo de un insumo usá Progresión de precios.</p></details>
+      <div class="help-group" data-group>Administración</div>
+      <details><summary>¿Cómo cargo un gasto?</summary><p>En Administración > Gastos tocá + Agregar. Completá los campos obligatorios (la app te avisa cuáles faltan), elegí el proveedor y guardá. Si el proveedor todavía no existe, podés crearlo desde el mismo formulario con + Proveedor.</p></details>
+      <details><summary>¿Cómo filtro los gastos?</summary><p>Arriba hay un filtro por mes (por defecto muestra el mes corriente, y también hay Acumulado año). Además, la fila de filtros de la tabla permite filtrar por fecha, proveedor y familia.</p></details>
+      <details><summary>¿Cómo funciona la fecha de pago y el recordatorio por mail?</summary><p>Cada proveedor puede tener cargados los días de pago (columna Fecha de pago en Parámetros > Proveedores). Al elegir ese proveedor en un gasto, la fecha de pago se completa sola: fecha de factura más esos días. Si cambiás la fecha de factura se recalcula, y si la editás a mano se respeta lo que pusiste. Cuando llega ese día y el gasto todavía no tiene forma de pago, la app envía un recordatorio por mail a las 8 de la mañana.</p></details>
+      <details><summary>¿Cómo marco un gasto como pagado?</summary><p>En la tabla de Gastos, tocá el botón de forma de pago del gasto y elegí cómo se pagó. Con eso deja de generar recordatorios.</p></details>
+      <details><summary>¿Para qué sirve el Calendario de pagos?</summary><p>Para ver de un vistazo qué vencimientos hay en cada fecha. Desde ahí podés ir directo al gasto correspondiente.</p></details>
+      <details><summary>¿Cómo cargo la caja del día?</summary><p>En Ventas y Caja, con + Agregar caja diaria. Para borrar una caja cargada se usa Eliminar caja y es obligatorio indicar el motivo, que queda registrado.</p></details>
+      <details><summary>¿Qué es el EERR y cómo se lee?</summary><p>Es el Estado de Resultados: las filas son los conceptos y las columnas los meses. Cada celda muestra el importe y su porcentaje sobre los ingresos. Por defecto ves el mes corriente y con Ver meses anteriores se despliega el resto.</p></details>
+      <div class="help-group" data-group>RRHH</div>
+      <details><summary>¿Cómo cargo horas extra, feriados, ausencias o adelantos?</summary><p>En RRHH > Novedades del mes elegí el mes y escribí el valor en la celda del empleado. Se guarda al salir de la celda, y las celdas con algún valor se pintan de rosa para que se vea qué ya está cargado.</p></details>
+      <details><summary>¿Dónde veo y modifico al personal?</summary><p>En RRHH > Personal, con los empleados activos. Los sueldos del mes se ven en Liquidación mensual, y el detalle de cada mes en Historico.</p></details>
+      <div class="help-group" data-group>Parámetros</div>
+      <details><summary>¿Cómo agrego un proveedor o una familia?</summary><p>En Parámetros > Proveedores o Familias con el botón + Agregar. En el proveedor podés definir su familia, el tipo de gasto por defecto y los días de pago.</p></details>
+      <details><summary>¿Quién puede crear usuarios?</summary><p>Solo los administradores, desde Parámetros > Usuarios. Ahí se asigna el local de cada usuario.</p></details>
+      <details><summary>¿Qué es el Log?</summary><p>Es el registro de actividad: muestra quién hizo qué cambio y cuándo. Sirve para revisar altas, modificaciones y eliminaciones.</p></details>
+      <div class="help-empty app-hidden" id="helpEmpty">No encontramos resultados para tu búsqueda.</div>
+    </div>
+    <div class="modal-actions"><button class="btn secondary" onclick="closeModal('modalAyuda')">Cerrar</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="modalNuevoProyecto">
   <div class="modal">
     <h3>Nuevo proyecto</h3>
@@ -547,6 +592,7 @@
     <span id="userEmail"></span>
     <button class="btn secondary small app-hidden" id="btnCambiarProyecto" onclick="volverAlPicker()">🔀 Cambiar Local</button>
     <button class="btn secondary small" id="btnThemeToggle" onclick="toggleTheme()">🌙</button>
+    <button class="btn secondary small" id="btnHelp" onclick="openHelp()" title="Ayuda y preguntas frecuentes" aria-label="Ayuda y preguntas frecuentes">❓</button>
     <button class="btn secondary small" id="btnLogoutHeader" onclick="doLogout()">Cerrar sesión</button>
   </div>
 </header>
@@ -4988,6 +5034,26 @@ async function deleteGasto(id){
 }
 
 /* ---------- Modales ---------- */
+
+function openHelp(){
+  const i=document.getElementById('helpSearch'); if(i){ i.value=''; filterHelp(''); }
+  openModal('modalAyuda'); if(i) i.focus();
+}
+function filterHelp(q){
+  q=(q||'').trim().toLowerCase();
+  const body=document.getElementById('helpBody'); let any=false, curGroup=null, groupHas=false;
+  const flush=()=>{ if(curGroup) curGroup.style.display = groupHas?'':'none'; };
+  [...body.children].forEach(el=>{
+    if(el.hasAttribute('data-group')){ flush(); curGroup=el; groupHas=false; }
+    else if(el.tagName==='DETAILS'){
+      const hit = !q || el.textContent.toLowerCase().includes(q);
+      el.style.display = hit?'':'none'; el.open = !!q && hit;
+      if(hit){ groupHas=true; any=true; }
+    }
+  });
+  flush();
+  document.getElementById('helpEmpty').classList.toggle('app-hidden', any);
+}
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
