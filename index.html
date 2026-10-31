@@ -409,6 +409,7 @@
     filter:drop-shadow(0 0 8px rgba(255,255,255,.95)) drop-shadow(0 0 16px rgba(255,255,255,.8));
     animation: splashLogoIn 3s cubic-bezier(.2,.8,.3,1) forwards;
   }
+  #tblRrhhNovedades input.novedad-llena{ background:#ffe4ea; color:#1a1d24; border-color:#f3b8c6; }
   @keyframes splashLogoIn{
     to{ opacity:1; transform:scale(1); }
   }
@@ -4488,10 +4489,10 @@ function renderRrhhNovedades(){
     const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhNovedadesMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
     return `<tr>
       <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td>
-      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.horasExtra||''}" placeholder="0" onchange="guardarEventual('${e.id}','horas_extra',this.value)"></td>
-      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.feriados||''}" placeholder="0" onchange="guardarEventual('${e.id}','feriados',this.value)"></td>
-      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.ausencias||''}" placeholder="0" onchange="guardarEventual('${e.id}','ausencias',this.value)"></td>
-      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${ev.adelantos||''}" placeholder="0" onchange="guardarEventual('${e.id}','adelantos',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input${ev.horasExtra?' novedad-llena':''}" value="${ev.horasExtra||''}" oninput="this.classList.toggle('novedad-llena', Number(this.value)!==0 && this.value!=='')" placeholder="0" onchange="guardarEventual('${e.id}','horas_extra',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input${ev.feriados?' novedad-llena':''}" value="${ev.feriados||''}" oninput="this.classList.toggle('novedad-llena', Number(this.value)!==0 && this.value!=='')" placeholder="0" onchange="guardarEventual('${e.id}','feriados',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input${ev.ausencias?' novedad-llena':''}" value="${ev.ausencias||''}" oninput="this.classList.toggle('novedad-llena', Number(this.value)!==0 && this.value!=='')" placeholder="0" onchange="guardarEventual('${e.id}','ausencias',this.value)"></td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input${ev.adelantos?' novedad-llena':''}" value="${ev.adelantos||''}" oninput="this.classList.toggle('novedad-llena', Number(this.value)!==0 && this.value!=='')" placeholder="0" onchange="guardarEventual('${e.id}','adelantos',this.value)"></td>
     </tr>`;
   }).join('');
 }
