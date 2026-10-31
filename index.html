@@ -410,6 +410,10 @@
     animation: splashLogoIn 3s cubic-bezier(.2,.8,.3,1) forwards;
   }
   #tblRrhhNovedades input.novedad-llena{ background:#ffe4ea; color:#1a1d24; border-color:#f3b8c6; }
+  .help-contact{ display:flex; align-items:center; gap:12px; margin-top:12px; padding:12px 14px; border:1px solid var(--accent); border-radius:10px; background:var(--panel2); color:var(--text); text-decoration:none; font-size:13px; line-height:1.4; }
+  .help-contact:hover{ background:var(--bg); }
+  .help-contact .hc-icon{ font-size:22px; }
+  .help-contact small{ color:var(--muted); font-size:12px; }
   .help-search{ width:100%; box-sizing:border-box; margin-bottom:12px; }
   .help-body{ max-height:62vh; overflow-y:auto; padding-right:4px; }
   .help-group{ margin:14px 0 6px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
@@ -572,6 +576,10 @@
       <details><summary>¿Qué es el Log?</summary><p>Es el registro de actividad: muestra quién hizo qué cambio y cuándo. Sirve para revisar altas, modificaciones y eliminaciones.</p></details>
       <div class="help-empty app-hidden" id="helpEmpty">No encontramos resultados para tu búsqueda.</div>
     </div>
+    <a class="help-contact" id="helpContact" href="mailto:brocolipms@gmail.com?subject=Consulta%20desde%20la%20app">
+      <span class="hc-icon">✉️</span>
+      <span><b>Contactar al administrador</b><br><small>¿No encontraste lo que buscabas? Escribinos y te respondemos.</small></span>
+    </a>
     <div class="modal-actions"><button class="btn secondary" onclick="closeModal('modalAyuda')">Cerrar</button></div>
   </div>
 </div>
@@ -5052,6 +5060,14 @@ async function deleteGasto(id){
 
 function openHelp(){
   const i=document.getElementById('helpSearch'); if(i){ i.value=''; filterHelp(''); }
+  const a=document.getElementById('helpContact');
+  if(a){
+    const local=(typeof currentProyecto!=='undefined' && currentProyecto && currentProyecto.nombre)||'';
+    const mail=(document.getElementById('userEmail')?.textContent||'').trim();
+    const asunto='Consulta desde la app'+(local?' - '+local:'');
+    const cuerpo='Hola, tengo una consulta:\n\n\n\n---\nLocal: '+local+'\nUsuario: '+mail;
+    a.href='mailto:brocolipms@gmail.com?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
+  }
   openModal('modalAyuda'); if(i) i.focus();
 }
 function filterHelp(q){
