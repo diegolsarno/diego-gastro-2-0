@@ -105,6 +105,17 @@
   </div>
 </div>
 
+<div id="lockScreen" class="center hidden">
+  <div class="box">
+    <img class="logo" src="icon-192.png" alt="Brocoli PMS">
+    <h1>Brocoli PMS</h1>
+    <p>Desbloqueá con tu huella o Face ID</p>
+    <div id="lockError" class="err hidden"></div>
+    <button class="btn" id="btnUnlock">Desbloquear</button>
+    <button class="btn sec" id="btnLockPass" style="margin-top:10px">Usar contraseña</button>
+  </div>
+</div>
+
 <div id="pickerScreen" class="center hidden">
   <div class="box">
     <h1 id="pickerTitle">Elegí un local</h1>
@@ -123,6 +134,7 @@
   </header>
   <div class="bar"><select id="mesSelect" aria-label="Mes"></select></div>
   <main id="content"><div class="loading">Cargando…</div></main>
+  <div class="foot" id="bioFoot" style="padding:4px 0 24px"></div>
 </div>
 
 <script>
@@ -523,7 +535,7 @@ function render(){
 }
 
 /* ===== Flujo de sesión ===== */
-function show(id){ ['loginScreen','pickerScreen','appScreen'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); }
+function show(id){ ['loginScreen','pickerScreen','appScreen','lockScreen'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); }
 
 async function entrar(session){
   let {data:profile,error} = await supa.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
@@ -557,7 +569,7 @@ async function abrirProyecto(p){
   if(currentProfile && currentProfile.is_admin) localStorage.setItem('movilProyecto', p.id);
   document.getElementById('localName').textContent = p.nombre;
   mesSel = null;
-  show('appScreen');
+  show('appScreen'); bioFootRender();
   document.getElementById('content').innerHTML='<div class="loading">Cargando…</div>';
   await refrescar();
 }
@@ -565,7 +577,7 @@ async function refrescar(){
   try{ await cargarDatos(); render(); }
   catch(e){ document.getElementById('content').innerHTML='<div class="card"><div class="err">No se pudieron cargar los datos: '+esc(e.message)+'</div></div>'; }
 }
-async function salir(){ await supa.auth.signOut(); localStorage.removeItem('movilProyecto'); destroyCharts(); show('loginScreen'); }
+async function salir(){ await supa.auth.signOut(); localStorage.removeItem('movilProyecto'); localStorage.removeItem('movilBio'); destroyCharts(); show('loginScreen'); }
 
 document.getElementById('btnLogin').addEventListener('click', async ()=>{
   const email=document.getElementById('loginEmail').value.trim(), password=document.getElementById('loginPass').value;
@@ -581,6 +593,55 @@ document.getElementById('btnCambiarLocal').addEventListener('click',mostrarPicke
 document.getElementById('btnRefresh').addEventListener('click',refrescar);
 document.getElementById('mesSelect').addEventListener('change',e=>{ mesSel=e.target.value; render(); });
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(!document.getElementById('appScreen').classList.contains('hidden')) render(); });
+
+/* ===== Huella / Face ID (bloqueo local del dispositivo) ===== */
+const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+async function bioDisponible(){ try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ return false; } }
+async function bioActivar(){
+  const {data:{session}}=await supa.auth.getSession();
+  const email=(session&&session.user.email)||'usuario';
+  try{
+    const cred=await navigator.credentials.create({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),
+      rp:{name:'Brocoli PMS',id:location.hostname},
+      user:{id:crypto.getRandomValues(new Uint8Array(16)),name:email,displayName:email},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},
+      timeout:60000}});
+    localStorage.setItem('movilBio',b64(cred.rawId));
+  }catch(e){ alert('No se pudo activar: '+(e.message||e)); }
+  bioFootRender();
+}
+async function bioVerificar(){
+  const id=localStorage.getItem('movilBio'); if(!id) return true;
+  try{
+    await navigator.credentials.get({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:location.hostname,
+      allowCredentials:[{type:'public-key',id:unb64(id)}],userVerification:'required',timeout:60000}});
+    return true;
+  }catch(e){ return false; }
+}
+async function bioFootRender(){
+  const el=document.getElementById('bioFoot');
+  if(localStorage.getItem('movilBio')) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--muted)">🔓 Desactivar huella / Face ID</a>';
+  else if(await bioDisponible()) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--accent);font-weight:600">🔒 Activar huella / Face ID</a>';
+  else { el.innerHTML=''; return; }
+  document.getElementById('bioToggle').onclick=async e=>{ e.preventDefault(); if(localStorage.getItem('movilBio')){ localStorage.removeItem('movilBio'); bioFootRender(); } else bioActivar(); };
+}
+async function desbloquear(){
+  const err=document.getElementById('lockError'); err.classList.add('hidden');
+  if(await bioVerificar()){ const {data:{session}}=await supa.auth.getSession(); if(session && localStorage.getItem('movilBio')){ show('lockScreen'); desbloquear(); } else if(session) entrar(session); else show('loginScreen'); }
+  else { err.textContent='No se pudo verificar. Tocá Desbloquear para reintentar.'; err.classList.remove('hidden'); }
+}
+function bloquear(){ if(localStorage.getItem('movilBio') && !document.getElementById('appScreen').classList.contains('hidden')){ destroyCharts(); show('lockScreen'); } }
+let hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ hiddenAt=Date.now(); }
+  else if(hiddenAt && Date.now()-hiddenAt>60000){ bloquear(); if(!document.getElementById('lockScreen').classList.contains('hidden')) desbloquear(); }
+});
+document.getElementById('btnUnlock').addEventListener('click',desbloquear);
+document.getElementById('btnLockPass').addEventListener('click',salir);
 
 (async function init(){
   const {data:{session}} = await supa.auth.getSession();
