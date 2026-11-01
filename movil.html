@@ -124,6 +124,17 @@ try{ const l=sessionStorage.getItem('dbgLast'); if(l){ window.addEventListener('
   </div>
 </div>
 
+<div id="bioOffer" class="center hidden">
+  <div class="box">
+    <img class="logo" src="icon-192.png" alt="Brocoli PMS">
+    <h1>¿Activar huella / Face ID?</h1>
+    <p>La próxima vez entrás con tu huella o tu cara, sin escribir la contraseña.</p>
+    <div id="bioOfferMsg" class="err hidden"></div>
+    <button class="btn" id="btnBioSi">Activar ahora</button>
+    <button class="btn sec" id="btnBioNo" style="margin-top:10px">Ahora no</button>
+  </div>
+</div>
+
 <div id="pickerScreen" class="center hidden">
   <div class="box">
     <h1 id="pickerTitle">Elegí un local</h1>
@@ -144,7 +155,7 @@ try{ const l=sessionStorage.getItem('dbgLast'); if(l){ window.addEventListener('
   <main id="content"><div class="loading">Cargando…</div></main>
   <div class="foot" id="bioFoot" style="padding:4px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v4</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v5</div>
 </div>
 
 <script>
@@ -545,7 +556,7 @@ function render(){
 }
 
 /* ===== Flujo de sesión ===== */
-function show(id){ ['loginScreen','pickerScreen','appScreen','lockScreen'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); }
+function show(id){ ['loginScreen','pickerScreen','appScreen','lockScreen','bioOffer'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); }
 
 async function entrar(session){
   let {data:profile,error} = await supa.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
@@ -594,7 +605,7 @@ document.getElementById('btnLogin').addEventListener('click', async ()=>{
   const err=document.getElementById('loginError'); err.classList.add('hidden');
   const {data:res,error}=await supa.auth.signInWithPassword({email,password});
   if(error){ err.textContent='No se pudo iniciar sesión: '+error.message; err.classList.remove('hidden'); return; }
-  entrar(res.session);
+  ofrecerBio(res.session);
 });
 document.getElementById('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('btnLogin').click(); });
 document.getElementById('btnLogout').addEventListener('click',salir);
@@ -608,13 +619,12 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()
 const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const unb64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 async function bioDisponible(){ try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ return false; } }
-function bioSay(m){ const e=document.getElementById('bioMsg'); if(e) e.textContent=m; }
-async function bioActivar(){
+function bioSay(m){ ['bioMsg','bioOfferMsg'].forEach(i=>{ const e=document.getElementById(i); if(e){ e.textContent=m; if(i==='bioOfferMsg') e.classList.toggle('hidden',!m); } }); }
+async function bioActivar(emailArg){
   bioSay('Pidiendo huella… si no aparece nada en unos segundos, tu teléfono no la está ofreciendo.');
-  if(!window.PublicKeyCredential){ bioSay('Este navegador no soporta huella/Face ID. Abrí la app desde Chrome.'); return; }
-  if(!(await bioDisponible())){ bioSay('Tu teléfono no tiene configurado el bloqueo biométrico. Activá una huella o un PIN de pantalla en Ajustes > Seguridad y volvé a intentar.'); return; }
-  const {data:{session}}=await supa.auth.getSession();
-  const email=(session&&session.user.email)||'usuario';
+  if(!window.PublicKeyCredential){ bioSay('Este navegador no soporta huella/Face ID. Abrí la app desde Chrome.'); return false; }
+  if(!(await bioDisponible())){ bioSay('Tu teléfono no tiene configurado el bloqueo biométrico. Activá una huella o un PIN de pantalla en Ajustes > Seguridad y volvé a intentar.'); return false; }
+  const email=emailArg||'usuario';
   try{
     const cred=await navigator.credentials.create({publicKey:{
       challenge:crypto.getRandomValues(new Uint8Array(32)),
@@ -623,9 +633,9 @@ async function bioActivar(){
       pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
       authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},
       timeout:60000}});
-    localStorage.setItem('movilBio',b64(cred.rawId)); bioSay('✅ Huella activada');
+    localStorage.setItem('movilBio',b64(cred.rawId)); bioSay('✅ Huella activada'); bioFootRender(); return true;
   }catch(e){ bioSay('No se pudo activar ('+(e.name||'error')+'): '+(e.message||e)); }
-  bioFootRender();
+  bioFootRender(); return false;
 }
 async function bioVerificar(){
   const id=localStorage.getItem('movilBio'); if(!id) return true;
@@ -640,11 +650,12 @@ async function bioFootRender(){
   const el=document.getElementById('bioFoot');
   if(localStorage.getItem('movilBio')) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--muted)">🔓 Desactivar huella / Face ID</a>';
   else if(true) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--accent);font-weight:600">🔒 Activar huella / Face ID</a>';
-  document.getElementById('bioToggle').onclick=async e=>{ e.preventDefault(); if(localStorage.getItem('movilBio')){ localStorage.removeItem('movilBio'); bioFootRender(); } else bioActivar(); };
+  document.getElementById('bioToggle').onclick=async e=>{ e.preventDefault(); if(localStorage.getItem('movilBio')){ localStorage.removeItem('movilBio'); bioFootRender(); } else bioActivar(window.__bioEmail); };
 }
 async function desbloquear(){
   const err=document.getElementById('lockError'); err.classList.add('hidden');
-  if(await bioVerificar()){ const {data:{session}}=await supa.auth.getSession(); if(session && localStorage.getItem('movilBio')){ show('lockScreen'); desbloquear(); } else if(session) entrar(session); else show('loginScreen'); }
+  if(await bioVerificar()){ const {data:{session}}=await supa.auth.getSession(); if(session) window.__bioEmail=session.user.email;
+  if(session && localStorage.getItem('movilBio')){ show('lockScreen'); desbloquear(); } else if(session) entrar(session); else show('loginScreen'); }
   else { err.textContent='No se pudo verificar. Tocá Desbloquear para reintentar.'; err.classList.remove('hidden'); }
 }
 function bloquear(){ if(localStorage.getItem('movilBio') && !document.getElementById('appScreen').classList.contains('hidden')){ destroyCharts(); show('lockScreen'); } }
@@ -655,6 +666,19 @@ document.addEventListener('visibilitychange',()=>{
 });
 document.getElementById('btnUnlock').addEventListener('click',desbloquear);
 document.getElementById('btnLockPass').addEventListener('click',salir);
+
+let pendingSession=null;
+async function ofrecerBio(session){
+  window.__bioEmail=session.user.email;
+  if(!localStorage.getItem('movilBio') && await bioDisponible()){ pendingSession=session; bioSay(''); show('bioOffer'); }
+  else entrar(session);
+}
+document.getElementById('btnBioSi').addEventListener('click',async()=>{
+  const ok=await bioActivar(window.__bioEmail);
+  if(ok && pendingSession){ const s=pendingSession; pendingSession=null; entrar(s); }
+  else document.getElementById('btnBioNo').textContent='Continuar sin huella';
+});
+document.getElementById('btnBioNo').addEventListener('click',()=>{ if(pendingSession){ const s=pendingSession; pendingSession=null; entrar(s); } });
 
 (async function init(){
   const {data:{session}} = await supa.auth.getSession();
