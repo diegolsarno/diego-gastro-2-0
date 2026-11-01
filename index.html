@@ -473,7 +473,7 @@
 </script>
 
 <div id="configWarning" class="config-warning" style="display:none;">
-  ⚠️ Todavía no configuraste la conexión a Supabase. Completá SUPABASE_URL y SUPABASE_ANON_KEY al principio de este archivo HTML (ver comentario "CONFIGURACION").
+  ⚠️ Todavía no configuraste la conexión a la base de datos. Completá SUPABASE_URL y SUPABASE_ANON_KEY al principio de este archivo HTML (ver comentario "CONFIGURACION").
 </div>
 
 <div id="loginScreen">
@@ -1214,7 +1214,6 @@
 
 </main>
 
-<footer>Datos guardados en Supabase (base de datos en la nube) — accesible desde cualquier dispositivo con sesión iniciada.</footer>
 
 </div><!-- /sectionScreen -->
 
@@ -1634,7 +1633,7 @@ async function doLogin(){
   const password = document.getElementById('loginPass').value;
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
-  if(!supa){ errEl.textContent = 'Falta configurar la conexión a Supabase en el archivo.'; errEl.style.display='block'; return; }
+  if(!supa){ errEl.textContent = 'Falta configurar la conexión a la base de datos.'; errEl.style.display='block'; return; }
   const {data:res, error} = await supa.auth.signInWithPassword({email, password});
   if(error){ errEl.textContent = 'No se pudo iniciar sesión: ' + error.message; errEl.style.display='block'; return; }
   onLoggedIn(res.session);
@@ -1653,7 +1652,7 @@ async function doSignup(){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Ingresá un email válido.'; errEl.style.display='block'; return; }
   if(!passwordValida(pass)){ errEl.textContent = 'La contraseña debe tener al menos 7 caracteres e incluir una mayúscula.'; errEl.style.display='block'; return; }
   if(pass!==pass2){ errEl.textContent = 'Las contraseñas no coinciden.'; errEl.style.display='block'; return; }
-  if(!supa){ errEl.textContent = 'Falta configurar la conexión a Supabase en el archivo.'; errEl.style.display='block'; return; }
+  if(!supa){ errEl.textContent = 'Falta configurar la conexión a la base de datos.'; errEl.style.display='block'; return; }
   try{
     const {data:res, error} = await supa.auth.signUp({email, password:pass});
     if(error) throw error;
@@ -1674,7 +1673,7 @@ async function doForgotPassword(){
   errEl.style.display = 'none';
   okEl.style.display = 'none';
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Ingresá un email válido.'; errEl.style.display='block'; return; }
-  if(!supa){ errEl.textContent = 'Falta configurar la conexión a Supabase en el archivo.'; errEl.style.display='block'; return; }
+  if(!supa){ errEl.textContent = 'Falta configurar la conexión a la base de datos.'; errEl.style.display='block'; return; }
   const btn = document.getElementById('btnEnviarReset');
   btn.disabled = true;
   try{
@@ -2046,7 +2045,7 @@ async function loadAll(){
 
     renderAll();
   }catch(e){
-    alert('Error cargando datos de Supabase: ' + e.message + '\n\nRevisá que hayas corrido el schema.sql y que la URL/API key sean correctas.');
+    alert('Error cargando los datos: ' + e.message + '\n\nRevisá que hayas corrido el schema.sql y que la URL/API key sean correctas.');
     console.error(e);
   }
 }
