@@ -134,7 +134,9 @@
   </header>
   <div class="bar"><select id="mesSelect" aria-label="Mes"></select></div>
   <main id="content"><div class="loading">Cargando…</div></main>
-  <div class="foot" id="bioFoot" style="padding:4px 0 24px"></div>
+  <div class="foot" id="bioFoot" style="padding:4px 0 8px"></div>
+  <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v3</div>
 </div>
 
 <script>
@@ -598,9 +600,11 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()
 const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const unb64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 async function bioDisponible(){ try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ return false; } }
+function bioSay(m){ const e=document.getElementById('bioMsg'); if(e) e.textContent=m; }
 async function bioActivar(){
-  if(!window.PublicKeyCredential){ alert('Este navegador no soporta huella/Face ID. Abrí la app desde Chrome.'); return; }
-  if(!(await bioDisponible())){ alert('Tu teléfono no tiene configurado el bloqueo biométrico. Activá una huella o un PIN de pantalla en Ajustes > Seguridad y volvé a intentar.'); return; }
+  bioSay('Pidiendo huella… si no aparece nada en unos segundos, tu teléfono no la está ofreciendo.');
+  if(!window.PublicKeyCredential){ bioSay('Este navegador no soporta huella/Face ID. Abrí la app desde Chrome.'); return; }
+  if(!(await bioDisponible())){ bioSay('Tu teléfono no tiene configurado el bloqueo biométrico. Activá una huella o un PIN de pantalla en Ajustes > Seguridad y volvé a intentar.'); return; }
   const {data:{session}}=await supa.auth.getSession();
   const email=(session&&session.user.email)||'usuario';
   try{
@@ -611,8 +615,8 @@ async function bioActivar(){
       pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
       authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},
       timeout:60000}});
-    localStorage.setItem('movilBio',b64(cred.rawId));
-  }catch(e){ alert('No se pudo activar ('+(e.name||'error')+'): '+(e.message||e)); }
+    localStorage.setItem('movilBio',b64(cred.rawId)); bioSay('✅ Huella activada');
+  }catch(e){ bioSay('No se pudo activar ('+(e.name||'error')+'): '+(e.message||e)); }
   bioFootRender();
 }
 async function bioVerificar(){
