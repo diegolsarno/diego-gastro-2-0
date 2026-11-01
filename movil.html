@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brocoli PMS</title>
+<meta name="theme-color" content="#f2f3f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brocoli">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f2f3f6; --panel:#ffffff; --panel2:#eef0f4; --border:#d8dce3;
+    --text:#1a1d24; --muted:#5b6270; --accent:#2f6ee0;
+    --green:#1f9d55; --red:#d93025; --orange:#c05a1a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+      --text:#e8eaed; --muted:#9aa1ac; --accent:#4f8cff;
+      --green:#2ecc71; --red:#e74c3c; --orange:#e67e22;
+    }
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  body{ min-height:100vh; padding-bottom:env(safe-area-inset-bottom); }
+  .hidden{ display:none !important; }
+  button{ font:inherit; color:inherit; }
+
+  /* Login / selector */
+  .center{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .box{ width:100%; max-width:380px; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:24px; }
+  .box h1{ margin:0 0 4px; font-size:20px; }
+  .box p{ margin:0 0 16px; color:var(--muted); font-size:13px; }
+  .box img.logo{ width:84px; height:84px; border-radius:18px; display:block; margin:0 auto 12px; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .field input{ width:100%; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font-size:16px; }
+  .btn{ width:100%; padding:13px; border:0; border-radius:10px; background:var(--accent); color:#fff; font-weight:700; font-size:15px; cursor:pointer; }
+  .btn.sec{ background:var(--panel2); color:var(--text); border:1px solid var(--border); font-weight:600; }
+  .err{ color:var(--red); font-size:13px; margin:0 0 10px; }
+  .proy{ display:flex; align-items:center; gap:12px; width:100%; padding:12px; margin-bottom:8px; border:1px solid var(--border); border-radius:12px; background:var(--panel2); cursor:pointer; text-align:left; font-weight:600; }
+  .proy img{ width:36px; height:36px; border-radius:8px; object-fit:cover; }
+
+  /* App */
+  header.top{ position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; background:var(--bg); border-bottom:1px solid var(--border); }
+  header.top .name{ flex:1; font-weight:800; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .iconbtn{ border:1px solid var(--border); background:var(--panel); border-radius:10px; padding:8px 10px; font-size:14px; cursor:pointer; }
+  .bar{ display:flex; gap:8px; padding:10px 14px 0; }
+  .bar select{ flex:1; padding:11px 12px; border-radius:10px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:15px; font-weight:600; }
+  main{ padding:12px 14px 28px; display:flex; flex-direction:column; gap:12px; }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; }
+  .card h2{ margin:0 0 10px; font-size:13px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .kpis{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kpi{ background:var(--panel2); border-radius:12px; padding:12px; }
+  .kpi.wide{ grid-column:1 / -1; }
+  .kpi .l{ font-size:12px; color:var(--muted); }
+  .kpi .n{ font-size:21px; font-weight:800; margin-top:2px; word-break:break-word; }
+  .kpi .d{ font-size:12px; margin-top:2px; color:var(--muted); }
+  .pos{ color:var(--green); } .neg{ color:var(--red); }
+  .chartbox{ position:relative; height:220px; }
+  .chartbox.tall{ height:250px; }
+  .legend{ margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .legend .row{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .legend .dot{ width:10px; height:10px; border-radius:3px; flex:none; }
+  .legend .nm{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .legend .vl{ font-weight:700; }
+  .legend .pc{ color:var(--muted); width:46px; text-align:right; }
+  .list .item{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .list .item:last-child{ border-bottom:0; }
+  .list .when{ width:58px; flex:none; font-weight:700; font-size:13px; }
+  .list .who{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .list .amt{ font-weight:700; }
+  .badge{ font-size:11px; padding:2px 7px; border-radius:20px; background:var(--panel2); color:var(--muted); }
+  .badge.late{ background:rgba(217,48,37,.14); color:var(--red); }
+  .tbl{ width:100%; border-collapse:collapse; font-size:14px; }
+  .tbl td{ padding:8px 0; border-bottom:1px solid var(--border); }
+  .tbl tr:last-child td{ border-bottom:0; }
+  .tbl td.r{ text-align:right; font-variant-numeric:tabular-nums; }
+  .tbl td.p{ text-align:right; color:var(--muted); width:58px; font-size:12px; }
+  .tbl tr.b td{ font-weight:800; }
+  .empty{ color:var(--muted); font-size:13px; padding:6px 0; }
+  .foot{ text-align:center; color:var(--muted); font-size:11px; padding:6px 0 0; }
+  .loading{ text-align:center; color:var(--muted); padding:40px 0; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="center hidden">
+  <div class="box">
+    <img class="logo" src="icon-192.png" alt="Brocoli PMS">
+    <h1>Brocoli PMS</h1>
+    <p>Resumen de Administración · solo lectura</p>
+    <div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" inputmode="email"></div>
+    <div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+    <div id="loginError" class="err hidden"></div>
+    <button class="btn" id="btnLogin">Ingresar</button>
+  </div>
+</div>
+
+<div id="pickerScreen" class="center hidden">
+  <div class="box">
+    <h1 id="pickerTitle">Elegí un local</h1>
+    <p>Seleccioná el local que querés ver.</p>
+    <div id="pickerList"></div>
+    <button class="btn sec" id="btnPickerLogout">Cerrar sesión</button>
+  </div>
+</div>
+
+<div id="appScreen" class="hidden">
+  <header class="top">
+    <div class="name" id="localName">—</div>
+    <button class="iconbtn hidden" id="btnCambiarLocal" title="Cambiar Local">🔀</button>
+    <button class="iconbtn" id="btnRefresh" title="Actualizar">⟳</button>
+    <button class="iconbtn" id="btnLogout" title="Cerrar sesión">⎋</button>
+  </header>
+  <div class="bar"><select id="mesSelect" aria-label="Mes"></select></div>
+  <main id="content"><div class="loading">Cargando…</div></main>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://idcndgiyylskkzkxlbnf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkY25kZ2l5eWxza2t6a3hsYm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3OTk2NDMsImV4cCI6MjA5OTM3NTY0M30.iP77CUQyvpizdNQfyg8vKiVhA2QNlZ_e4jEOyN-nk6c';
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ===== Estado ===== */
+let currentProfile = null, currentProyecto = null, proyectos = [];
+const data = {ventasDiarias:[], gastos:[], saldosIniciales:{}};
+let mesSel = null;
+const charts = {};
+
+/* ===== Formato ===== */
+function fmt(n){ if(n===null||n===undefined||isNaN(n)) return '-'; return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtCorto(n){
+  const a=Math.abs(n), s=n<0?'-':'';
+  if(a>=1e6) return s+'$'+(a/1e6).toLocaleString('es-AR',{maximumFractionDigits:1})+' M';
+  if(a>=1e3) return s+'$'+Math.round(a/1e3).toLocaleString('es-AR')+' k';
+  return s+'$'+Math.round(a);
+}
+function fmtPct(n){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '-'; return (n*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
+function fmtMes(iso){ if(!iso) return '-'; const [y,m]=iso.split('-'); const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; return (meses[Number(m)-1]||m)+'-'+y.slice(2); }
+function fmtMesLargo(k){ const [y,m]=k.split('-'); const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return meses[Number(m)-1]+' '+y; }
+function fmtDiaMes(iso){ if(!iso) return '-'; const [y,m,d]=iso.split('-'); return d+'/'+m; }
+function monthKey(iso){ return iso ? iso.slice(0,7) : null; }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function todayIso(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+/* ===== Lógica de EERR (misma que la app principal) ===== */
+const EERR_STRUCTURE = [
+  {t:'plain', label:'VENTAS TOTALES (Nido,Kiosco,Parrilla)', key:'ventas'},
+  {t:'plain', label:'VIANDAS CLUB', key:'viandas'},
+  {t:'plain', label:'3ros TIEMPOS', key:'terceros'},
+  {t:'ingresos', label:'TOTAL INGRESOS', key:'totalIngresos'},
+  {t:'egresos', label:'TOTAL EGRESOS', key:'totalEgresos1'},
+  {t:'resultado', label:'RESULTADO NETO', key:'resultadoNeto1'},
+  {t:'blank'},
+  {t:'h1', label:'COSTOS VARIABLES / DIRECTOS', key:'costosVariables'},
+  {t:'h2', label:'BEBIDAS', lvl:1},
+  {t:'d', label:'BEBIDA', lvl:2},
+  {t:'d', label:'CAFE E INFUSIONES', lvl:2},
+  {t:'d', label:'VINOS', lvl:2},
+  {t:'d', label:'HIELO', lvl:2},
+  {t:'h2', label:'COMIDAS', lvl:1},
+  {t:'d', label:'ALMACEN', lvl:2},
+  {t:'d', label:'CARNES', lvl:2},
+  {t:'d', label:'AVES', lvl:2},
+  {t:'d', label:'PESCADOS', lvl:2},
+  {t:'d', label:'FIAMBRES', lvl:2},
+  {t:'d', label:'VERDURAS Y FRUTAS', lvl:2},
+  {t:'d', label:'LACTEOS', lvl:2},
+  {t:'d', label:'PANADERIA Y PASTELERIA', lvl:2},
+  {t:'d', label:'KIOSCO', lvl:2},
+  {t:'d', label:'PESCADOS', lvl:2},
+  {t:'d', label:'CONGELADOS', lvl:2},
+  {t:'d', label:'HELADOS', lvl:2},
+  {t:'h2', label:'CMP', lvl:1},
+  {t:'d', label:'DESCARTABLES', lvl:2},
+  {t:'d', label:'FLETES', lvl:2},
+  {t:'blank'},
+  {t:'resultado', label:'MARGEN BRUTO', key:'margenBruto'},
+  {t:'blank'},
+  {t:'h1', label:'COSTOS FIJOS / INDIRECTOS', key:'costosFijos'},
+  {t:'h2', label:'COSTOS LABORALES', lvl:1},
+  {t:'h3', label:'OPERATIVOS', lvl:2},
+  {t:'d', label:'AGUINALDO', lvl:3},
+  {t:'d', label:'PERSONAL EXTRA', lvl:3},
+  {t:'d', label:'CARGAS SOCIALES', lvl:3},
+  {t:'d', label:'LIQUIDACION', lvl:3},
+  {t:'d', label:'ADELANTOS', lvl:3},
+  {t:'d', label:'HORAS EXTRA', lvl:3},
+  {t:'d', label:'BONOS', lvl:3},
+  {t:'d', label:'SUELDOS', lvl:3},
+  {t:'h3', label:'ADMINISTRATIVOS', lvl:2},
+  {t:'d', label:'SUELDOS ADMINISTRATIVOS', lvl:3},
+  {t:'h2', label:'ESTRUCTURA', lvl:1},
+  {t:'d', label:'ALQUILER CLUB', lvl:2},
+  {t:'h2', label:'GASTOS OPERATIVOS', lvl:1},
+  {t:'d', label:'MAXIREST', lvl:2},
+  {t:'h2', label:'GASTOS VARIOS', lvl:1},
+  {t:'d', label:'LIBRERIA', lvl:2},
+  {t:'h2', label:'HONORARIOS PROFESIONALES', lvl:1},
+  {t:'d', label:'HONORARIOS PROFESIONALES', lvl:2},
+  {t:'d', label:'CONTADOR', lvl:2},
+  {t:'h2', label:'MANTENIMIENTO E INVERSION', lvl:1},
+  {t:'d', label:'VAJILLA', lvl:2},
+  {t:'d', label:'EQUIPAMIENTO', lvl:2},
+  {t:'d', label:'MANTENIMIENTO E INVERSION NIDO', lvl:2},
+  {t:'d', label:'LIMPIEZA', lvl:2},
+  {t:'d', label:'FUMIGACION', lvl:2},
+  {t:'d', label:'SEGURO', lvl:2},
+  {t:'d', label:'BAZAR', lvl:2},
+  {t:'blank'},
+  {t:'resultado', label:'RESULTADO OPERATIVO', key:'resultadoOperativo'},
+  {t:'blank'},
+  {t:'h1', label:'GASTOS FINANCIEROS', key:'gastosFinancieros'},
+  {t:'d', label:'IMPUESTOS y COMISIONES MP', lvl:1},
+  {t:'d', label:'GASTOS BANCARIOS', lvl:1},
+  {t:'d', label:'COMISION POSNET', lvl:1},
+  {t:'resultado', label:'RESULTADO ANTES DE IMPUESTOS', key:'resultadoAntesImpuestos'},
+  {t:'blank'},
+  {t:'h1', label:'IMPUESTOS', key:'impuestos'},
+  {t:'d', label:'IIBB', lvl:1},
+  {t:'d', label:'IVA', lvl:1},
+  {t:'d', label:'IMPUESTOS', lvl:1},
+  {t:'egresos', label:'TOTAL EGRESOS', key:'totalEgresos2'},
+  {t:'resultado', label:'RESULTADO NETO', key:'resultadoNeto2'},
+];
+
+function eerrVentasPorMes(){
+  const map = {};
+  data.ventasDiarias.forEach(v=>{
+    const k = monthKey(v.fecha); if(!k) return;
+    if(!map[k]) map[k] = {ventas:0, viandas:0, terceros:0};
+    const restTotal = v.restauranteEfectivo + v.restauranteBco + v.restauranteMp;
+    const kioscoTotal = v.kioscoEfectivo + v.kioscoBco + v.kioscoMp;
+    const chiringoTotal = (v.chiringoEfectivo||0) + (v.chiringoMp||0);
+    const parrillaTotal = v.parrillaEfectivo + v.parrillaMp;
+    map[k].ventas += restTotal + kioscoTotal + chiringoTotal + parrillaTotal;
+    map[k].viandas += v.viandasTotal;
+    map[k].terceros += v.terceirosTotal;
+  });
+  return map;
+}
+
+function eerrGastosPorMes(){
+  const map = {};
+  data.gastos.forEach(g=>{
+    const k = monthKey(g.fechaFc || g.fechaCarga); if(!k) return;
+    if(!map[k]) map[k] = {};
+    /* Normalizado a mayúsculas para que el gasto sume en su línea de EERR sin importar
+       cómo haya quedado tipeada la familia (ej: "Bonos" vs "BONOS"). */
+    const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
+    map[k][fam] = (map[k][fam]||0) + g.total;
+  });
+  /* Impuestos MP / Impuestos Bco.: casillas cargadas a mano día a día en Ventas y
+     Caja. No suman al Total día de esa tabla, pero sí viajan diariamente a estas
+     líneas del EERR. */
+  data.ventasDiarias.forEach(v=>{
+    const k = monthKey(v.fecha); if(!k) return;
+    if(!map[k]) map[k] = {};
+    if(v.impuestosMp) map[k]['IMPUESTOS Y COMISIONES MP'] = (map[k]['IMPUESTOS Y COMISIONES MP']||0) + v.impuestosMp;
+    if(v.impuestosBco) map[k]['COMISION POSNET'] = (map[k]['COMISION POSNET']||0) + v.impuestosBco;
+  });
+  return map;
+}
+
+/* Calcula, para un mes dado, el valor de cada línea de EERR_STRUCTURE usando una pila
+   que acumula automáticamente el valor de las líneas de detalle en todos sus headers
+   (h1/h2/h3) abiertos — así los subtotales siempre están bien sumados. */
+function calcularEerrMes(ventasMes, famMap){
+  const rowVals = new Array(EERR_STRUCTURE.length).fill(null);
+  const named = {};
+  let stack = [];
+
+  function popTo(level){
+    while(stack.length && stack[stack.length-1].level >= level){
+      const e = stack.pop();
+      rowVals[e.idx] = e.sum;
+      if(e.key) named[e.key] = e.sum;
+      if(stack.length) stack[stack.length-1].sum += e.sum;
+    }
+  }
+
+  // Pasada 1: recorre solo las líneas de la jerarquía de costos/gastos (headers h1/h2/h3
+  // y líneas de detalle) para calcular costosVariables, costosFijos, gastosFinancieros
+  // e impuestos. Se ignoran acá las líneas de resumen (ingresos/egresos/resultado) porque
+  // dependen de estos totales y todavía no están calculados.
+  EERR_STRUCTURE.forEach((row, i)=>{
+    if(row.t==='h1' || row.t==='h2' || row.t==='h3'){
+      const level = row.t==='h1'?1:row.t==='h2'?2:3;
+      popTo(level);
+      stack.push({level, idx:i, key:row.key, sum:0});
+    } else if(row.t==='d'){
+      const val = (famMap && famMap[row.label.trim().toUpperCase()]) || 0;
+      rowVals[i] = val;
+      if(stack.length) stack[stack.length-1].sum += val;
+    }
+  });
+  popTo(0);
+
+  // Pasada 2: con costosVariables/costosFijos/gastosFinancieros/impuestos ya resueltos,
+  // se calculan en orden las líneas de ventas, ingresos, egresos y resultados.
+  EERR_STRUCTURE.forEach((row, i)=>{
+    if(row.t==='plain'){
+      const val = (ventasMes && ventasMes[row.key]) || 0;
+      rowVals[i] = val; named[row.key] = val;
+    } else if(row.t==='ingresos'){
+      const val = (named.ventas||0) + (named.viandas||0) + (named.terceros||0);
+      rowVals[i] = val; named.totalIngresos = val; named[row.key] = val;
+    } else if(row.t==='egresos'){
+      const val = (named.costosVariables||0) + (named.costosFijos||0) + (named.gastosFinancieros||0) + (named.impuestos||0);
+      rowVals[i] = val; named[row.key] = val;
+    } else if(row.t==='resultado'){
+      let val = 0;
+      if(row.key==='margenBruto') val = (named.totalIngresos||0) - (named.costosVariables||0);
+      else if(row.key==='resultadoOperativo') val = (named.margenBruto||0) - (named.costosFijos||0);
+      else if(row.key==='resultadoAntesImpuestos') val = (named.resultadoOperativo||0) - (named.gastosFinancieros||0);
+      else if(row.key==='resultadoNeto1') val = (named.totalIngresos||0) - (named.totalEgresos1||0);
+      else if(row.key==='resultadoNeto2') val = (named.totalIngresos||0) - (named.totalEgresos2||0);
+      rowVals[i] = val; named[row.key] = val;
+    }
+  });
+
+  return rowVals;
+}
+
+
+
+function eerrNamed(rowVals){
+  const o={};
+  EERR_STRUCTURE.forEach((r,i)=>{ if(r.key) o[r.key]=rowVals[i]||0; });
+  return o;
+}
+
+/* ===== Carga de datos (solo lectura) ===== */
+async function cargarDatos(){
+  const pid = currentProyecto.id;
+  const [v,g,s] = await Promise.all([
+    supa.from('ventas_diarias').select('*').eq('proyecto_id',pid).order('fecha'),
+    supa.from('gastos').select('*, proveedores(nombre), familias(nombre)').eq('proyecto_id',pid).order('fecha_fc',{ascending:false}),
+    supa.from('egresos_saldos_iniciales').select('*').eq('proyecto_id',pid),
+  ]);
+  if(v.error) throw v.error; if(g.error) throw g.error;
+  data.ventasDiarias = (v.data||[]).map(v=>({
+    id:v.id, fecha:v.fecha,
+    restauranteEfectivo:Number(v.restaurante_efectivo)||0, restauranteBco:Number(v.restaurante_bco)||0, restauranteMp:Number(v.restaurante_mp)||0,
+    kioscoEfectivo:Number(v.kiosco_efectivo)||0, kioscoBco:Number(v.kiosco_bco)||0, kioscoMp:Number(v.kiosco_mp)||0,
+    chiringoEfectivo:Number(v.chiringo_efectivo)||0, chiringoMp:Number(v.chiringo_mp)||0,
+    viandasTotal:Number(v.viandas_total)||0, terceirosTotal:Number(v.terceros_total)||0,
+    parrillaEfectivo:Number(v.parrilla_efectivo)||0, parrillaMp:Number(v.parrilla_mp)||0,
+    total:Number(v.total)||0, impuestosMp:Number(v.impuestos_mp)||0, impuestosBco:Number(v.impuestos_bco)||0,
+  }));
+  data.gastos = (g.data||[]).map(x=>({
+    id:x.id, fechaFc:x.fecha_fc, fechaCarga:x.fecha_carga, fechaPago:x.fecha_pago, formaPago:x.forma_pago, formaPagoFecha:x.forma_pago_fecha,
+    proveedorNombre:(x.proveedores&&x.proveedores.nombre)?x.proveedores.nombre:'Sin proveedor',
+    familiaNombre:(x.familias&&x.familias.nombre)?x.familias.nombre:'-',
+    total:Number(x.total)||0,
+  }));
+  data.saldosIniciales = {};
+  (s.data||[]).forEach(e=>{ data.saldosIniciales[e.cuenta]=Number(e.saldo)||0; });
+}
+
+/* ===== Cálculos del resumen ===== */
+function mesesDisponibles(){
+  const vm = eerrVentasPorMes(), gm = eerrGastosPorMes();
+  return [...new Set([...Object.keys(vm),...Object.keys(gm)])].sort();
+}
+function resumenMes(key){
+  if(!key) return null;
+  const vm=eerrVentasPorMes(), gm=eerrGastosPorMes();
+  return eerrNamed(calcularEerrMes(vm[key], gm[key]));
+}
+function cuentaDeFormaPago(fp){ return fp==='Efectivo'?'Efectivo':fp==='Transferencia'?'Transferencia':fp==='E-check'?'Banco':fp==='MP'?'MP':null; }
+function ingresosCuenta(c){
+  let t=0;
+  data.ventasDiarias.forEach(v=>{
+    if(c==='Efectivo') t+=v.restauranteEfectivo+v.kioscoEfectivo+v.chiringoEfectivo+v.parrillaEfectivo;
+    else if(c==='Banco') t+=v.restauranteBco+v.kioscoBco;
+    else if(c==='MP') t+=v.restauranteMp+v.kioscoMp+v.chiringoMp+v.parrillaMp;
+  });
+  return t;
+}
+function saldoCuenta(c){
+  let egresos=0;
+  data.gastos.forEach(g=>{ if(g.formaPago && cuentaDeFormaPago(g.formaPago)===c) egresos+=g.total; });
+  if(c==='MP') data.ventasDiarias.forEach(v=>{ egresos+=v.impuestosMp; });
+  if(c==='Transferencia') data.ventasDiarias.forEach(v=>{ egresos+=v.impuestosBco; });
+  return (data.saldosIniciales[c]||0) + ingresosCuenta(c) - egresos;
+}
+
+/* ===== Render ===== */
+function destroyCharts(){ Object.keys(charts).forEach(k=>{ charts[k].destroy(); delete charts[k]; }); }
+const PALETA = ['#4f8cff','#2ecc71','#f1c40f','#e67e22','#b388e0','#e74c3c','#1abc9c','#95a5a6'];
+
+function delta(actual, anterior){
+  if(anterior===null||anterior===undefined||!anterior) return '';
+  const d=(actual-anterior)/Math.abs(anterior);
+  const cls = d>=0 ? 'pos':'neg';
+  return `<span class="${cls}">${d>=0?'▲':'▼'} ${fmtPct(Math.abs(d))}</span> vs mes anterior`;
+}
+
+function render(){
+  destroyCharts();
+  const meses = mesesDisponibles();
+  const sel = document.getElementById('mesSelect');
+  if(!meses.length){ sel.innerHTML=''; document.getElementById('content').innerHTML='<div class="card"><div class="empty">Todavía no hay datos cargados.</div></div>'; return; }
+  if(!mesSel || !meses.includes(mesSel)){
+    const cur = todayIso().slice(0,7);
+    mesSel = meses.includes(cur) ? cur : meses[meses.length-1];
+  }
+  sel.innerHTML = meses.slice().reverse().map(k=>`<option value="${k}" ${k===mesSel?'selected':''}>${fmtMesLargo(k)}</option>`).join('');
+
+  const idx = meses.indexOf(mesSel);
+  const prevKey = idx>0 ? meses[idx-1] : null;
+  const R = resumenMes(mesSel), P = resumenMes(prevKey);
+
+  let h='';
+  /* 1) Totales */
+  h+=`<section class="card"><h2>Totales · ${fmtMesLargo(mesSel)}</h2><div class="kpis">
+    <div class="kpi"><div class="l">Ventas</div><div class="n pos">${fmt(R.totalIngresos)}</div><div class="d">${delta(R.totalIngresos,P&&P.totalIngresos)}</div></div>
+    <div class="kpi"><div class="l">Egresos</div><div class="n neg">${fmt(R.totalEgresos1)}</div><div class="d">${delta(R.totalEgresos1,P&&P.totalEgresos1)}</div></div>
+    <div class="kpi wide"><div class="l">Resultado neto</div><div class="n ${R.resultadoNeto1<0?'neg':'pos'}">${fmt(R.resultadoNeto1)}</div><div class="d">${delta(R.resultadoNeto1,P&&P.resultadoNeto1)}${R.totalIngresos?` · margen ${fmtPct(R.resultadoNeto1/R.totalIngresos)}`:''}</div></div>
+  </div></section>`;
+
+  /* 2) Ventas diarias */
+  h+=`<section class="card"><h2>Ventas diarias</h2><div class="chartbox"><canvas id="chVentas"></canvas></div><div class="foot" id="ventasFoot"></div></section>`;
+  /* 3) Ventas vs egresos 6 meses */
+  h+=`<section class="card"><h2>Ventas vs egresos · últimos meses</h2><div class="chartbox"><canvas id="chMeses"></canvas></div></section>`;
+  /* 4) Egresos por familia */
+  h+=`<section class="card"><h2>Egresos por familia</h2><div class="chartbox"><canvas id="chFam"></canvas></div><div class="legend" id="famLegend"></div></section>`;
+  /* 5) Próximos pagos */
+  h+=`<section class="card"><h2>Próximos pagos</h2><div class="list" id="pagosList"></div></section>`;
+  /* 6) Saldos de caja */
+  h+=`<section class="card"><h2>Saldos de caja</h2><div class="kpis" id="cajaKpis"></div></section>`;
+  /* 7) EERR resumido */
+  const filasEerr=[
+    ['Total ingresos','totalIngresos',1],['Costos variables','costosVariables'],['Margen bruto','margenBruto',1],
+    ['Costos fijos','costosFijos'],['Resultado operativo','resultadoOperativo',1],['Gastos financieros','gastosFinancieros'],
+    ['Resultado antes de impuestos','resultadoAntesImpuestos',1],['Impuestos','impuestos'],['Resultado neto','resultadoNeto1',1],
+  ];
+  h+=`<section class="card"><h2>EERR resumido · ${fmtMes(mesSel+'-01')}</h2><table class="tbl">${
+    filasEerr.map(([l,k,b])=>`<tr class="${b?'b':''}"><td>${l}</td><td class="r ${(k.startsWith('resultado')||k==='margenBruto')?(R[k]<0?'neg':''):''}">${fmt(R[k])}</td><td class="p">${R.totalIngresos?fmtPct(R[k]/R.totalIngresos):'-'}</td></tr>`).join('')
+  }</table></section>`;
+  h+=`<div class="foot">Solo lectura · datos de ${esc(currentProyecto.nombre)}</div>`;
+  document.getElementById('content').innerHTML=h;
+
+  const txt=css('--text'), mut=css('--muted'), grid=css('--border');
+  Chart.defaults.color = mut; Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+
+  /* Ventas diarias */
+  const dias = data.ventasDiarias.filter(v=>monthKey(v.fecha)===mesSel).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if(dias.length){
+    charts.ventas = new Chart(document.getElementById('chVentas'),{
+      type:'bar',
+      data:{labels:dias.map(v=>Number(v.fecha.slice(8))), datasets:[{data:dias.map(v=>v.total), backgroundColor:css('--accent'), borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>'Día '+i[0].label,label:i=>fmt(i.parsed.y)}}},
+        scales:{y:{ticks:{callback:v=>fmtCorto(v),maxTicksLimit:5},grid:{color:grid}},x:{grid:{display:false}}}}
+    });
+    const tot=dias.reduce((s,v)=>s+v.total,0);
+    const mejor=dias.reduce((a,b)=>b.total>a.total?b:a);
+    document.getElementById('ventasFoot').textContent=`Promedio ${fmt(tot/dias.length)} por día · mejor día ${fmtDiaMes(mejor.fecha)} (${fmt(mejor.total)})`;
+  }else{
+    document.getElementById('chVentas').parentElement.innerHTML='<div class="empty">Sin ventas cargadas en este mes.</div>';
+  }
+
+  /* Ventas vs egresos */
+  const hasta = meses.slice(Math.max(0,idx-5), idx+1);
+  const res = hasta.map(resumenMes);
+  charts.meses = new Chart(document.getElementById('chMeses'),{
+    type:'bar',
+    data:{labels:hasta.map(k=>fmtMes(k+'-01')), datasets:[
+      {label:'Ventas',data:res.map(r=>r.totalIngresos),backgroundColor:css('--green'),borderRadius:4},
+      {label:'Egresos',data:res.map(r=>r.totalEgresos1),backgroundColor:css('--red'),borderRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}},tooltip:{callbacks:{label:i=>i.dataset.label+': '+fmt(i.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>fmtCorto(v),maxTicksLimit:5},grid:{color:grid}},x:{grid:{display:false}}}}
+  });
+
+  /* Torta de egresos por familia */
+  const fm = eerrGastosPorMes()[mesSel] || {};
+  let fams = Object.entries(fm).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const totalFam = fams.reduce((s,[,v])=>s+v,0);
+  if(fams.length>7){ const resto=fams.slice(7).reduce((s,[,v])=>s+v,0); fams=fams.slice(0,7).concat([['Otros',resto]]); }
+  if(fams.length){
+    charts.fam = new Chart(document.getElementById('chFam'),{
+      type:'doughnut',
+      data:{labels:fams.map(f=>f[0]),datasets:[{data:fams.map(f=>f[1]),backgroundColor:fams.map((_,i)=>PALETA[i%PALETA.length]),borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.label+': '+fmt(i.parsed)}}}}
+    });
+    document.getElementById('famLegend').innerHTML = fams.map((f,i)=>`<div class="row"><span class="dot" style="background:${PALETA[i%PALETA.length]}"></span><span class="nm">${esc(f[0])}</span><span class="vl">${fmt(f[1])}</span><span class="pc">${fmtPct(f[1]/totalFam)}</span></div>`).join('');
+  }else{
+    document.getElementById('chFam').parentElement.innerHTML='<div class="empty">Sin egresos cargados en este mes.</div>';
+  }
+
+  /* Próximos pagos: gastos con fecha de pago y todavía sin forma de pago */
+  const hoy = todayIso();
+  const pend = data.gastos.filter(g=>g.fechaPago && !g.formaPago).sort((a,b)=>a.fechaPago.localeCompare(b.fechaPago));
+  const vencidos = pend.filter(g=>g.fechaPago<hoy);
+  const proximos = pend.filter(g=>g.fechaPago>=hoy).slice(0,10);
+  const itemHtml=(g,late)=>`<div class="item"><span class="when ${late?'neg':''}">${fmtDiaMes(g.fechaPago)}</span><span class="who">${esc(g.proveedorNombre)}</span>${late?'<span class="badge late">vencido</span>':''}<span class="amt">${fmt(g.total)}</span></div>`;
+  let ph='';
+  if(vencidos.length){
+    const totV=vencidos.reduce((s,g)=>s+g.total,0);
+    ph+=`<div class="empty"><b class="neg">${vencidos.length} vencido${vencidos.length>1?'s':''}</b> sin pagar · ${fmt(totV)}</div>`+vencidos.slice(-5).map(g=>itemHtml(g,true)).join('');
+  }
+  ph+=proximos.map(g=>itemHtml(g,false)).join('');
+  if(!ph) ph='<div class="empty">No hay pagos pendientes con fecha de pago.</div>';
+  document.getElementById('pagosList').innerHTML=ph;
+
+  /* Saldos de caja */
+  const cuentas=[['Efectivo','Efectivo'],['Transferencia','Transferencia'],['Banco','Banco (E-check)'],['MP','Mercado Pago']];
+  let tot=0;
+  const kp = cuentas.map(([k,l])=>{ const s=saldoCuenta(k); tot+=s; return `<div class="kpi"><div class="l">${l}</div><div class="n ${s<0?'neg':''}">${fmt(s)}</div></div>`; }).join('');
+  document.getElementById('cajaKpis').innerHTML = kp + `<div class="kpi wide"><div class="l">Total</div><div class="n ${tot<0?'neg':'pos'}">${fmt(tot)}</div></div>`;
+}
+
+/* ===== Flujo de sesión ===== */
+function show(id){ ['loginScreen','pickerScreen','appScreen'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); }
+
+async function entrar(session){
+  let {data:profile,error} = await supa.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
+  if(error||!profile){ await new Promise(r=>setTimeout(r,700)); ({data:profile,error}=await supa.from('profiles').select('*').eq('id',session.user.id).maybeSingle()); }
+  if(error||!profile){ document.getElementById('loginError').textContent='No se pudo cargar tu perfil. Probá de nuevo.'; document.getElementById('loginError').classList.remove('hidden'); show('loginScreen'); return; }
+  currentProfile = profile;
+  document.getElementById('btnCambiarLocal').classList.toggle('hidden', !profile.is_admin);
+  if(profile.is_admin){
+    const {data:ps} = await supa.from('proyectos').select('*').order('nombre');
+    proyectos = ps||[];
+    const last = localStorage.getItem('movilProyecto');
+    const p = proyectos.find(x=>x.id===last);
+    if(p){ await abrirProyecto(p); } else if(proyectos.length===1){ await abrirProyecto(proyectos[0]); } else { mostrarPicker(); }
+  }else if(profile.proyecto_id){
+    const {data:p} = await supa.from('proyectos').select('*').eq('id',profile.proyecto_id).maybeSingle();
+    await abrirProyecto(p || {id:profile.proyecto_id,nombre:'Local'});
+  }else{
+    document.getElementById('pickerTitle').textContent='Esperando asignación';
+    document.getElementById('pickerList').innerHTML='<p>Tu usuario todavía no tiene un local asignado. Avisale al administrador.</p>';
+    show('pickerScreen');
+  }
+}
+function mostrarPicker(){
+  document.getElementById('pickerTitle').textContent='Elegí un local';
+  document.getElementById('pickerList').innerHTML = proyectos.map(p=>`<button class="proy" data-id="${esc(p.id)}">${p.logo_url?`<img src="${esc(p.logo_url)}" alt="">`:''}<span>${esc(p.nombre)}</span></button>`).join('') || '<p>No hay locales.</p>';
+  document.querySelectorAll('#pickerList .proy').forEach(b=>b.addEventListener('click',()=>{ const p=proyectos.find(x=>x.id===b.dataset.id); if(p) abrirProyecto(p); }));
+  show('pickerScreen');
+}
+async function abrirProyecto(p){
+  currentProyecto = {id:p.id, nombre:p.nombre};
+  if(currentProfile && currentProfile.is_admin) localStorage.setItem('movilProyecto', p.id);
+  document.getElementById('localName').textContent = p.nombre;
+  mesSel = null;
+  show('appScreen');
+  document.getElementById('content').innerHTML='<div class="loading">Cargando…</div>';
+  await refrescar();
+}
+async function refrescar(){
+  try{ await cargarDatos(); render(); }
+  catch(e){ document.getElementById('content').innerHTML='<div class="card"><div class="err">No se pudieron cargar los datos: '+esc(e.message)+'</div></div>'; }
+}
+async function salir(){ await supa.auth.signOut(); localStorage.removeItem('movilProyecto'); destroyCharts(); show('loginScreen'); }
+
+document.getElementById('btnLogin').addEventListener('click', async ()=>{
+  const email=document.getElementById('loginEmail').value.trim(), password=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginError'); err.classList.add('hidden');
+  const {data:res,error}=await supa.auth.signInWithPassword({email,password});
+  if(error){ err.textContent='No se pudo iniciar sesión: '+error.message; err.classList.remove('hidden'); return; }
+  entrar(res.session);
+});
+document.getElementById('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('btnLogin').click(); });
+document.getElementById('btnLogout').addEventListener('click',salir);
+document.getElementById('btnPickerLogout').addEventListener('click',salir);
+document.getElementById('btnCambiarLocal').addEventListener('click',mostrarPicker);
+document.getElementById('btnRefresh').addEventListener('click',refrescar);
+document.getElementById('mesSelect').addEventListener('change',e=>{ mesSel=e.target.value; render(); });
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(!document.getElementById('appScreen').classList.contains('hidden')) render(); });
+
+(async function init(){
+  const {data:{session}} = await supa.auth.getSession();
+  if(session) entrar(session); else show('loginScreen');
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+})();
+</script>
+</body>
+</html>
