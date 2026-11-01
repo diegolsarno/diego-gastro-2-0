@@ -599,6 +599,8 @@ const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,'-').
 const unb64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 async function bioDisponible(){ try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ return false; } }
 async function bioActivar(){
+  if(!window.PublicKeyCredential){ alert('Este navegador no soporta huella/Face ID. Abrí la app desde Chrome.'); return; }
+  if(!(await bioDisponible())){ alert('Tu teléfono no tiene configurado el bloqueo biométrico. Activá una huella o un PIN de pantalla en Ajustes > Seguridad y volvé a intentar.'); return; }
   const {data:{session}}=await supa.auth.getSession();
   const email=(session&&session.user.email)||'usuario';
   try{
@@ -610,7 +612,7 @@ async function bioActivar(){
       authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},
       timeout:60000}});
     localStorage.setItem('movilBio',b64(cred.rawId));
-  }catch(e){ alert('No se pudo activar: '+(e.message||e)); }
+  }catch(e){ alert('No se pudo activar ('+(e.name||'error')+'): '+(e.message||e)); }
   bioFootRender();
 }
 async function bioVerificar(){
@@ -625,8 +627,7 @@ async function bioVerificar(){
 async function bioFootRender(){
   const el=document.getElementById('bioFoot');
   if(localStorage.getItem('movilBio')) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--muted)">🔓 Desactivar huella / Face ID</a>';
-  else if(await bioDisponible()) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--accent);font-weight:600">🔒 Activar huella / Face ID</a>';
-  else { el.innerHTML=''; return; }
+  else if(true) el.innerHTML='<a href="#" id="bioToggle" style="color:var(--accent);font-weight:600">🔒 Activar huella / Face ID</a>';
   document.getElementById('bioToggle').onclick=async e=>{ e.preventDefault(); if(localStorage.getItem('movilBio')){ localStorage.removeItem('movilBio'); bioFootRender(); } else bioActivar(); };
 }
 async function desbloquear(){
