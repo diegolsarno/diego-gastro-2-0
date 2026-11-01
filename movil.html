@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script>document.documentElement.dataset.theme=(function(){var h=new Date().getHours();return (h>=7&&h<19)?'light':'dark';})();document.addEventListener('DOMContentLoaded',function(){document.querySelector('meta[name=theme-color]').content=document.documentElement.dataset.theme==='dark'?'#0f1115':'#f2f3f6';});</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Brocoli PMS</title>
-<meta name="theme-color" content="#f2f3f6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f3f6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Brocoli">
@@ -21,8 +21,8 @@
     --text:#1a1d24; --muted:#5b6270; --accent:#2f6ee0;
     --green:#1f9d55; --red:#d93025; --orange:#c05a1a;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
+  @media all{
+    :root[data-theme="dark"]{
       --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
       --text:#e8eaed; --muted:#9aa1ac; --accent:#4f8cff;
       --green:#2ecc71; --red:#e74c3c; --orange:#e67e22;
@@ -156,7 +156,7 @@ try{ const l=sessionStorage.getItem('dbgLast'); if(l){ window.addEventListener('
   <main id="content"><div class="loading">Cargando…</div></main>
   <div class="foot" id="bioFoot" style="padding:4px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v6</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v7</div>
 </div>
 
 <script>
@@ -614,7 +614,8 @@ document.getElementById('btnPickerLogout').addEventListener('click',salir);
 document.getElementById('btnCambiarLocal').addEventListener('click',mostrarPicker);
 document.getElementById('btnRefresh').addEventListener('click',refrescar);
 document.getElementById('mesSelect').addEventListener('change',e=>{ mesSel=e.target.value; render(); });
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(!document.getElementById('appScreen').classList.contains('hidden')) render(); });
+function aplicarTema(){ const h=new Date().getHours(), t=(h>=7&&h<19)?'light':'dark'; if(document.documentElement.dataset.theme!==t){ document.documentElement.dataset.theme=t; const m=document.querySelector('meta[name=theme-color]'); if(m) m.content=t==='dark'?'#0f1115':'#f2f3f6'; if(!document.getElementById('appScreen').classList.contains('hidden')) render(); } }
+setInterval(aplicarTema,60000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) aplicarTema(); });
 
 /* ===== Huella / Face ID (bloqueo local del dispositivo) ===== */
 const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
