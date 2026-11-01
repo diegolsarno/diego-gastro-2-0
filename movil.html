@@ -92,6 +92,14 @@
 </style>
 </head>
 <body>
+<script>
+(function(){ function show(m){ let b=document.getElementById('dbgBanner'); if(!b){ b=document.createElement('div'); b.id='dbgBanner'; b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#7a1f1f;color:#fff;font:12px/1.4 sans-serif;padding:8px 10px;max-height:40vh;overflow:auto'; document.body.appendChild(b); } b.textContent+=m+'\n'; b.style.whiteSpace='pre-wrap'; }
+window.addEventListener('error',e=>show('Error: '+e.message+' ('+(e.lineno||'')+')'));
+window.addEventListener('unhandledrejection',e=>show('Promesa: '+((e.reason&&e.reason.message)||e.reason)));
+window.addEventListener('pagehide',()=>{ try{ sessionStorage.setItem('dbgLast','pagehide '+new Date().toISOString()); }catch(_){} });
+try{ const l=sessionStorage.getItem('dbgLast'); if(l){ window.addEventListener('DOMContentLoaded',()=>show('Última salida: '+l)); sessionStorage.removeItem('dbgLast'); } }catch(_){}
+})();
+</script>
 
 <div id="loginScreen" class="center hidden">
   <div class="box">
@@ -136,7 +144,7 @@
   <main id="content"><div class="loading">Cargando…</div></main>
   <div class="foot" id="bioFoot" style="padding:4px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v3</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v4</div>
 </div>
 
 <script>
