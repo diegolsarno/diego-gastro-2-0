@@ -38,6 +38,8 @@
   .center{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .box{ width:100%; max-width:380px; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:24px; }
   .box h1{ margin:0 0 4px; font-size:20px; }
+  .box img.logo + h1{ text-align:center; margin-bottom:18px; }
+  .box img.logo + h1 + p{ text-align:center; margin-top:-8px; }
   .box p{ margin:0 0 16px; color:var(--muted); font-size:13px; }
   .box img.logo{ width:84px; height:84px; border-radius:18px; display:block; margin:0 auto 12px; }
   .field{ margin-bottom:12px; }
@@ -105,7 +107,6 @@ try{ const l=sessionStorage.getItem('dbgLast'); if(l){ window.addEventListener('
   <div class="box">
     <img class="logo" src="icon-192.png" alt="Brocoli PMS">
     <h1>Brocoli PMS</h1>
-    <p>Resumen de Administración · solo lectura</p>
     <div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" inputmode="email"></div>
     <div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password"></div>
     <div id="loginError" class="err hidden"></div>
@@ -155,7 +156,7 @@ try{ const l=sessionStorage.getItem('dbgLast'); if(l){ window.addEventListener('
   <main id="content"><div class="loading">Cargando…</div></main>
   <div class="foot" id="bioFoot" style="padding:4px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v5</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v6</div>
 </div>
 
 <script>
