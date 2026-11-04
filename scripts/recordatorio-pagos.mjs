@@ -85,6 +85,7 @@ const porProyecto = {};
     (porProyecto[g.proyecto_id] ||= []).push(g);
   }
 
+let fallos = 0;
 for (const [proyectoId, lista] of Object.entries(porProyecto)) {
   const proyecto = proyectos.find(p => p.id === proyectoId);
   const nombreProyecto = proyecto ? proyecto.nombre : 'tu establecimiento';
@@ -109,18 +110,31 @@ for (const [proyectoId, lista] of Object.entries(porProyecto)) {
     return '<li>' + proveedor + ': <b>' + fmtMoneda(g.total) + '</b></li>';
   }).join('') + '</ul><p>Muchas gracias!</p><p>Brocoli PMS</p><p><img src="' + logoUrl + '" alt="Brocoli PMS" width="90" style="display:block;margin-top:8px;border:0;"></p>';
 
-  try {
-    await transporter.sendMail({
-      from: '"Brocoli PMS" <' + GMAIL_USER + '>',
-      to: destinatarios.join(', '),
-      subject: 'Recordatorio de pagos de hoy - ' + nombreProyecto,
-      text: texto,
-      html
-    });
-    console.log('Mail enviado para ' + nombreProyecto + ' a:', destinatarios.join(', '));
-  } catch (e) {
-    console.error('Error enviando mail para ' + nombreProyecto + ':', e.message);
+  let enviado = false;
+  for (let intento = 1; intento <= 3 && !enviado; intento++) {
+    try {
+      await transporter.sendMail({
+        from: '"Brocoli PMS" <' + GMAIL_USER + '>',
+        to: destinatarios.join(', '),
+        subject: 'Recordatorio de pagos de hoy - ' + nombreProyecto,
+        text: texto,
+        html
+      });
+      enviado = true;
+      console.log('Mail enviado para ' + nombreProyecto + ' a:', destinatarios.join(', '));
+    } catch (e) {
+      console.error('Error enviando mail para ' + nombreProyecto + ' (intento ' + intento + ' de 3):', e.message);
+      if (intento < 3) await new Promise(r => setTimeout(r, 20000));
+    }
   }
+  if (!enviado) fallos++;
+}
+
+// Si algun envio fallo, la ejecucion termina con error: GitHub no la cuenta como exitosa
+// y la siguiente ejecucion de la manana vuelve a intentarlo.
+if (fallos > 0) {
+  console.error('No se pudo enviar ' + fallos + ' recordatorio(s). Se reintenta en la proxima ejecucion de la manana.');
+  process.exit(1);
 }
 }
 
