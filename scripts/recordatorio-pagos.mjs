@@ -47,8 +47,17 @@ async function esperarHasta8() {
   }
 }
 
+function horaArgentina() {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', hour12: false }).format(new Date()));
+}
+
 async function main() {
   await esperarHasta8();
+  // Los recordatorios son solo de la manana: si una ejecucion programada llega despues del mediodia, no se envia.
+  if (process.env.GITHUB_EVENT_NAME === 'schedule' && horaArgentina() >= 12) {
+    console.log('Ya pasó el mediodía (Argentina). No se envía el recordatorio fuera de la mañana.');
+    return;
+  }
   const hoy = hoyArgentina();
   console.log('Buscando pagos con vencimiento:', hoy);
 
