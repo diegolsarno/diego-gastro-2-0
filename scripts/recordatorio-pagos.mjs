@@ -35,7 +35,20 @@ function fmtMoneda(n) {
   return Number(n || 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
 }
 
+// El workflow arranca unos minutos antes (GitHub suele demorar las ejecuciones programadas);
+// si todavia no son las 8:00 de Argentina (11:00 UTC), espera hasta esa hora para enviar.
+async function esperarHasta8() {
+  const ahora = new Date();
+  const objetivo = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate(), 11, 0, 0));
+  const ms = objetivo - ahora;
+  if (ms > 0 && ms <= 30 * 60 * 1000) {
+    console.log('Esperando hasta las 8:00 (Argentina):', Math.round(ms / 1000), 'segundos');
+    await new Promise(r => setTimeout(r, ms));
+  }
+}
+
 async function main() {
+  await esperarHasta8();
   const hoy = hoyArgentina();
   console.log('Buscando pagos con vencimiento:', hoy);
 
