@@ -2,19 +2,45 @@ name: Recordatorio de pagos
 
 on:
   schedule:
+    # 7:40, 8:40, 9:40 y 10:40 (Argentina). La primera espera hasta las 8:00 para enviar;
+    # las demas son respaldo por si GitHub demora o saltea una ejecucion.
     - cron: '40 10 * * *'
+    - cron: '40 11 * * *'
+    - cron: '40 12 * * *'
+    - cron: '40 13 * * *'
   workflow_dispatch: {}
+
+concurrency:
+  group: recordatorio-pagos
+  cancel-in-progress: false
 
 jobs:
   enviar-recordatorio:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
+      - name: Ver si ya se envio hoy
+        id: ya
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HOY=$(date -u +%F)
+          N=$(gh api "repos/${{ github.repository }}/actions/workflows/recordatorio-pagos.yml/runs?created=$HOY&status=success&event=schedule" --jq '.total_count')
+          echo "Ejecuciones exitosas hoy: $N"
+          echo "ya=$N" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        if: steps.ya.outputs.ya == '' || steps.ya.outputs.ya == '0'
       - uses: actions/setup-node@v4
+        if: steps.ya.outputs.ya == '' || steps.ya.outputs.ya == '0'
         with:
           node-version: '22'
       - run: npm install @supabase/supabase-js@2 nodemailer@6
+        if: steps.ya.outputs.ya == '' || steps.ya.outputs.ya == '0'
       - run: node scripts/recordatorio-pagos.mjs
+        if: steps.ya.outputs.ya == '' || steps.ya.outputs.ya == '0'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
