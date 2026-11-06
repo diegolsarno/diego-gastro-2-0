@@ -262,7 +262,7 @@
   <main id="content" class="hidden"></main>
   <div class="foot" id="bioFoot" style="padding:14px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v9</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v10</div>
 </div>
 
 <script>
@@ -632,6 +632,17 @@ function totalMesAnteriorEmpleado(empleadoId, mes){
   return emp ? emp.sueldoIngreso : 0;
 }
 
+function calcLiq(empleadoId, mes){
+  const ev = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===mes) || EV0;
+  const param = data.rrhhParametrosMes.find(p=>p.mes===mes);
+  const ant = totalMesAnteriorEmpleado(empleadoId, mes);
+  const ipcM = ant*(param?param.ipcRate:0), aumM = ant*(param?param.aumentoRate:0);
+  const base = ant + ipcM + aumM;
+  const he = base/30/8*(ev.horasExtra||0), fer = base/26*(ev.feriados||0), aus = base/30*(ev.ausencias||0);
+  const plus = ev.plusVacacional||0;
+  return {ev, ant, ipcM, aumM, base, he, fer, aus, plus, total: base + he + fer - aus + plus};
+}
+
 /* ===== Cálculos (Costo) ===== */
 function getInsumo(id){ return data.insumos.find(i=>i.id===id); }
 function getReceta(id){ return data.recetas.find(r=>r.id===id); }
@@ -914,10 +925,10 @@ function t_rrhh_novedades(){
   let conNov=0;
   const filas=emps.map(e=>{
     const ev=data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===sel)||EV0;
-    const cells=[['Horas extra',ev.horasExtra],['Feriados',ev.feriados],['Ausencias',ev.ausencias],['Adelantos',ev.adelantos]];
-    if(ev.plusVacacional) cells.push(['Plus vacacional',ev.plusVacacional]);
+    const cells=[['Horas extra',ev.horasExtra,v=>v+' hs'],['Feriados',ev.feriados,v=>String(v)],['Ausencias',ev.ausencias,v=>v+(v===1?' día':' días')],['Adelantos',ev.adelantos,fmt]];
+    if(ev.plusVacacional) cells.push(['Plus vacacional',ev.plusVacacional,fmt]);
     if(cells.some(c=>c[1])) conNov++;
-    return `<div class="emp"><div class="nm"><span>${nombreEmp(e)}</span></div><div class="grid2">${cells.map(([l,v])=>`<div class="novcell ${v?'lleno':''}"><div class="l">${l}</div><div class="n">${v?fmt(v):'-'}</div></div>`).join('')}</div></div>`;
+    return `<div class="emp"><div class="nm"><span>${nombreEmp(e)}</span></div><div class="grid2">${cells.map(([l,v,f])=>`<div class="novcell ${v?'lleno':''}"><div class="l">${l}</div><div class="n">${v?f(v):'-'}</div></div>`).join('')}</div></div>`;
   }).join('');
   let h = card('', `<div class="filt"><div class="f"><label>Mes</label><select onchange="setF('nMes',this.value)">${meses.map(m=>`<option value="${m}" ${m===sel?'selected':''}>${fmtMesLargo(m.slice(0,7))}</option>`).join('')}</select></div></div>`);
   if(!emps.length) return h+emptyCard('No hay empleados activos.');
@@ -932,16 +943,16 @@ function t_rrhh_liquidacion(){
   const emps=empActivos();
   let sumTotal=0, sumCash=0, pagados=0, calculados=0;
   const filas=emps.map(e=>{
-    const ev=data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===sel)||EV0;
+    const cl=calcLiq(e.id,sel), ev=cl.ev;
     const st=data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===sel);
-    const ant=totalMesAnteriorEmpleado(e.id,sel), ipcM=ant*ipc, aumM=ant*aum;
-    const total=st?st.totalMes:(ant+ipcM+aumM+(ev.horasExtra||0)+(ev.feriados||0)-(ev.ausencias||0)+(ev.plusVacacional||0));
+    const ant=cl.ant, ipcM=cl.ipcM, aumM=cl.aumM;
+    const total=st?st.totalMes:cl.total;
     const recibo=st?st.recibo:0, cash=total-(ev.adelantos||0)-recibo;
     sumTotal+=total; sumCash+=cash; if(st){ calculados++; if(st.pagado) pagados++; }
     const kv=(k,v,cls)=> `<div class="kv"><span class="k">${k}</span><span class="v ${cls||''}">${v}</span></div>`;
     return `<div class="emp"><div class="nm"><span>${nombreEmp(e)}</span>${st?(st.pagado?'<span class="pill">Pagado</span>':'<span class="pill pend">Pendiente</span>'):'<span class="pill gray">Sin calcular</span>'}</div>
       ${kv('Total mes anterior',fmt(ant))}${kv('+ IPC',fmt(ipcM))}${kv('+ Aumento',fmt(aumM))}
-      ${ev.horasExtra?kv('+ Horas extra',fmt(ev.horasExtra)):''}${ev.feriados?kv('+ Feriados',fmt(ev.feriados)):''}${ev.plusVacacional?kv('+ Plus vacacional',fmt(ev.plusVacacional)):''}${ev.ausencias?kv('− Ausencias',fmt(ev.ausencias),'neg'):''}
+      ${ev.horasExtra?kv('+ Horas extra ('+ev.horasExtra+' hs)',fmt(cl.he)):''}${ev.feriados?kv('+ Feriados ('+ev.feriados+')',fmt(cl.fer)):''}${ev.plusVacacional?kv('+ Plus vacacional',fmt(ev.plusVacacional)):''}${ev.ausencias?kv('− Ausencias ('+ev.ausencias+' d)',fmt(cl.aus),'neg'):''}
       <div class="kv big"><span class="k">Total mes</span><span class="v">${fmt(total)}</span></div>
       ${ev.adelantos?kv('− Adelantos',fmt(ev.adelantos),'neg'):''}${kv('− Recibo',fmt(recibo))}
       <div class="kv big"><span class="k">Cash</span><span class="v ${cash<0?'neg':''}">${fmt(cash)}</span></div></div>`;

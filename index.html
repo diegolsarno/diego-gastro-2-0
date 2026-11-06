@@ -572,7 +572,7 @@
       <details><summary>¿Cómo cargo la caja del día?</summary><p>En Ventas y Caja, con + Agregar caja diaria. Para borrar una caja cargada se usa Eliminar caja y es obligatorio indicar el motivo, que queda registrado.</p></details>
       <details><summary>¿Qué es el EERR y cómo se lee?</summary><p>Es el Estado de Resultados: las filas son los conceptos y las columnas los meses. Cada celda muestra el importe y su porcentaje sobre los ingresos. Por defecto ves el mes corriente y con Ver meses anteriores se despliega el resto.</p><div class="help-shot"><div class="hs-cap">Así se ve (ejemplo sin datos reales)</div><table class="hs-table"><tr><th>Detalle</th><th>oct-26</th></tr><tr><td>Ventas</td><td>$ 1.000.000 · 100%</td></tr><tr><td>Egresos</td><td>$ 600.000 · 60%</td></tr><tr><td><b>Resultado</b></td><td><b>$ 400.000 · 40%</b></td></tr></table><div style="margin-top:6px;color:var(--muted)">Datos de ejemplo</div></div></details>
       <div class="help-group" data-group>RRHH</div>
-      <details><summary>¿Cómo cargo horas extra, feriados, ausencias o adelantos?</summary><p>En RRHH > Novedades del mes elegí el mes y escribí el valor en la celda del empleado. Se guarda al salir de la celda, y las celdas con algún valor se pintan de rosa para que se vea qué ya está cargado.</p><div class="help-shot"><div class="hs-cap">Así se ve (ejemplo sin datos reales)</div><table class="hs-table"><tr><th>Apellido</th><th>Nombre</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Adelantos</th></tr><tr><td>Apellido</td><td>Nombre</td><td><span class="hs-input">0</span></td><td><span class="hs-input">0</span></td><td><span class="hs-pink">1</span></td><td><span class="hs-pink">100000</span></td></tr></table></div></details>
+      <details><summary>¿Cómo cargo horas extra, feriados, ausencias o adelantos?</summary><p>En RRHH > Novedades del mes elegí el mes y escribí la cantidad en la celda del empleado (horas extra en horas, feriados y ausencias en días, adelantos en pesos); el sistema calcula el importe con el sueldo del empleado. Se guarda al salir de la celda, y las celdas con algún valor se pintan de rosa para que se vea qué ya está cargado.</p><div class="help-shot"><div class="hs-cap">Así se ve (ejemplo sin datos reales)</div><table class="hs-table"><tr><th>Apellido</th><th>Nombre</th><th>Horas extra (hs)</th><th>Feriados (cant.)</th><th>Ausencias (días)</th><th>Adelantos ($)</th></tr><tr><td>Apellido</td><td>Nombre</td><td><span class="hs-input">0</span></td><td><span class="hs-input">0</span></td><td><span class="hs-pink">1</span></td><td><span class="hs-pink">100000</span></td></tr></table></div></details>
       <details><summary>¿Dónde veo y modifico al personal?</summary><p>En RRHH > Personal, con los empleados activos. Los sueldos del mes se ven en Liquidación mensual, y el detalle de cada mes en Historico.</p></details>
       <div class="help-group" data-group>Parámetros</div>
       <details><summary>¿Cómo agrego un proveedor o una familia?</summary><p>En Parámetros > Proveedores o Familias con el botón + Agregar. En el proveedor podés definir su familia, el tipo de gasto por defecto y los días de pago.</p></details>
@@ -4583,6 +4583,14 @@ async function guardarEventual(empleadoId, campo, valorStr){
       if(error) throw error;
     }
     await loadAll();
+    /* si el mes ya estaba calculado, se actualiza el total con las novedades nuevas (sin tocar el recibo) */
+    const liq = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===filtroRrhhNovedadesMesVal);
+    if(liq){
+      const cl = calcLiq(empleadoId, filtroRrhhNovedadesMesVal);
+      const {error:e2} = await supa.from('rrhh_liquidaciones').update({total_mes:cl.total, cash: cl.total - (cl.ev.adelantos||0) - liq.recibo}).eq('id', liq.id);
+      if(e2) throw e2;
+      await loadAll();
+    }
   }catch(e){ alert('Error guardando novedad: ' + e.message); }
 }
 
@@ -4592,6 +4600,19 @@ function totalMesAnteriorEmpleado(empleadoId, mes){
   if(previas.length>0) return previas[previas.length-1].totalMes;
   const emp = data.empleados.find(e=>e.id===empleadoId);
   return emp ? emp.sueldoIngreso : 0;
+}
+/* Calculo de la liquidacion (igual que la planilla de sueldos):
+   base = mes anterior + IPC + aumento
+   horas extra = base/30/8 x horas ; feriados = base/26 x cantidad ; ausencias = base/30 x dias */
+function calcLiq(empleadoId, mes){
+  const ev = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===mes) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+  const param = data.rrhhParametrosMes.find(p=>p.mes===mes);
+  const ant = totalMesAnteriorEmpleado(empleadoId, mes);
+  const ipcM = ant*(param?param.ipcRate:0), aumM = ant*(param?param.aumentoRate:0);
+  const base = ant + ipcM + aumM;
+  const he = base/30/8*(ev.horasExtra||0), fer = base/26*(ev.feriados||0), aus = base/30*(ev.ausencias||0);
+  const plus = ev.plusVacacional||0;
+  return {ev, ant, ipcM, aumM, base, he, fer, aus, plus, total: base + he + fer - aus + plus};
 }
 let filtroRrhhLiqMesVal = '';
 function renderRrhhLiquidacion(){
@@ -4615,12 +4636,10 @@ function renderRrhhLiquidacion(){
   const ipcRate = param ? param.ipcRate : 0;
   const aumentoRate = param ? param.aumentoRate : 0;
   tbody.innerHTML = empleadosActivos.map(e=>{
-    const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhLiqMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+    const c = calcLiq(e.id, filtroRrhhLiqMesVal), ev = c.ev;
     const stored = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
-    const totalAnterior = totalMesAnteriorEmpleado(e.id, filtroRrhhLiqMesVal);
-    const ipcMonto = totalAnterior * ipcRate;
-    const aumentoMonto = totalAnterior * aumentoRate;
-    const totalMesCalc = stored ? stored.totalMes : (totalAnterior + ipcMonto + aumentoMonto + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0));
+    const totalAnterior = c.ant, ipcMonto = c.ipcM, aumentoMonto = c.aumM;
+    const totalMesCalc = stored ? stored.totalMes : c.total;
     const recibo = stored ? stored.recibo : 0;
     const cash = totalMesCalc - (ev.adelantos||0) - recibo;
     return `<tr>
@@ -4628,9 +4647,9 @@ function renderRrhhLiquidacion(){
       <td class="muted">${fmt(totalAnterior)}</td>
       <td class="muted">${fmt(ipcMonto)}</td>
       <td class="muted">${fmt(aumentoMonto)}</td>
-      <td class="muted">${fmt(ev.horasExtra||0)}</td>
-      <td class="muted">${fmt(ev.feriados||0)}</td>
-      <td class="muted">${fmt(ev.ausencias||0)}</td>
+      <td class="muted">${fmt(c.he)}</td>
+      <td class="muted">${fmt(c.fer)}</td>
+      <td class="muted">${fmt(c.aus)}</td>
       <td><b>${fmt(totalMesCalc)}</b></td>
       <td class="muted">${fmt(ev.adelantos||0)}</td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${recibo||''}" placeholder="0" onchange="guardarReciboLiquidacion('${e.id}', this.value)"></td>
@@ -4662,9 +4681,7 @@ document.getElementById('btnCalcularLiquidacion').addEventListener('click', asyn
     const aumentoRate = param ? param.aumentoRate : 0;
     const empleadosActivos = data.empleados.filter(e=>e.activo);
     for(const e of empleadosActivos){
-      const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhLiqMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
-      const totalAnterior = totalMesAnteriorEmpleado(e.id, filtroRrhhLiqMesVal);
-      const totalMes = totalAnterior + totalAnterior*ipcRate + totalAnterior*aumentoRate + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0);
+      const cl = calcLiq(e.id, filtroRrhhLiqMesVal), ev = cl.ev, totalMes = cl.total;
       const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
       const recibo = existing ? existing.recibo : 0;
       const cash = totalMes - (ev.adelantos||0) - recibo;
@@ -4685,15 +4702,9 @@ async function guardarReciboLiquidacion(empleadoId, valorStr){
   const recibo = Number(valorStr) || 0;
   try{
     const mes = filtroRrhhLiqMesVal;
-    const ev = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===mes) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
+    const cl = calcLiq(empleadoId, mes), ev = cl.ev;
     const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===mes);
-    let totalMes;
-    if(existing){ totalMes = existing.totalMes; }
-    else{
-      const param = data.rrhhParametrosMes.find(p=>p.mes===mes);
-      const totalAnterior = totalMesAnteriorEmpleado(empleadoId, mes);
-      totalMes = totalAnterior + totalAnterior*(param?param.ipcRate:0) + totalAnterior*(param?param.aumentoRate:0) + (ev.horasExtra||0) + (ev.feriados||0) - (ev.ausencias||0) + (ev.plusVacacional||0);
-    }
+    const totalMes = existing ? existing.totalMes : cl.total;
     const cash = totalMes - (ev.adelantos||0) - recibo;
     if(existing){
       const {error} = await supa.from('rrhh_liquidaciones').update({recibo, cash}).eq('id', existing.id);
