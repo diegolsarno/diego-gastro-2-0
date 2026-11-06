@@ -262,7 +262,7 @@
   <main id="content" class="hidden"></main>
   <div class="foot" id="bioFoot" style="padding:14px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v14</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v15</div>
 </div>
 
 <script>
@@ -959,7 +959,11 @@ function t_rrhh_novedades(){
   }).join('');
   let h = card('', `<div class="filt"><div class="f"><label>Mes</label><select onchange="setF('nMes',this.value)">${meses.map(m=>`<option value="${m}" ${m===sel?'selected':''}>${fmtMesLargo(m.slice(0,7))}</option>`).join('')}</select></div></div>`);
   if(!emps.length) return h+emptyCard('No hay empleados activos.');
-  return h + card('Novedades · '+fmtMesLargo(sel.slice(0,7)), `<div class="empty" style="margin-bottom:4px">${conNov} de ${emps.length} empleados con novedades</div>${filas}`);
+  const tn={he:0,fer:0,aus:0,adel:0,plus:0};
+  emps.forEach(e=>{ const ev=data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===sel); if(ev){ tn.he+=ev.horasExtra||0; tn.fer+=ev.feriados||0; tn.aus+=ev.ausencias||0; tn.adel+=ev.adelantos||0; tn.plus+=ev.plusVacacional||0; } });
+  const kvT=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const totales = card('Totales del mes', kvT('Horas extra',tn.he+' hs')+kvT('Feriados',tn.fer)+kvT('Ausencias',tn.aus+(tn.aus===1?' día':' días'))+kvT('Adelantos',fmt(tn.adel))+(tn.plus?kvT('Plus vacacional',fmt(tn.plus)):''));
+  return h + card('Novedades · '+fmtMesLargo(sel.slice(0,7)), `<div class="empty" style="margin-bottom:4px">${conNov} de ${emps.length} empleados con novedades</div>${filas}`) + totales;
 }
 
 function t_rrhh_liquidacion(){
@@ -969,12 +973,14 @@ function t_rrhh_liquidacion(){
   const param=data.rrhhParametrosMes.find(p=>p.mes===sel), ipc=param?param.ipcRate:0, aum=param?param.aumentoRate:0;
   const emps=empActivos();
   let sumTotal=0, sumCash=0, pagados=0, calculados=0;
+  const tl={ant:0,ipc:0,aum:0,he:0,fer:0,aus:0,plus:0,adel:0,recibo:0,red:0};
   const filas=emps.map(e=>{
     const cl=calcLiq(e.id,sel), ev=cl.ev;
     const st=data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===sel);
     const ant=cl.ant, ipcM=cl.ipcM, aumM=cl.aumM;
     const total=st?st.totalMes:cl.total;
     const recibo=st?st.recibo:0, redondeo=st?(st.redondeo||0):0, cash=total-(ev.adelantos||0)-recibo+redondeo;
+    tl.ant+=ant; tl.ipc+=ipcM; tl.aum+=aumM; tl.he+=cl.he; tl.fer+=cl.fer; tl.aus+=cl.aus; tl.plus+=(ev.plusVacacional||0); tl.adel+=(ev.adelantos||0); tl.recibo+=recibo; tl.red+=redondeo;
     sumTotal+=total; sumCash+=cash; if(st){ calculados++; if(st.pagado) pagados++; }
     const kv=(k,v,cls)=> `<div class="kv"><span class="k">${k}</span><span class="v ${cls||''}">${v}</span></div>`;
     return `<div class="emp"><div class="nm"><span>${nombreEmp(e)}</span>${st?(st.pagado?'<span class="pill">Pagado</span>':'<span class="pill pend">Pendiente</span>'):'<span class="pill gray">Sin calcular</span>'}</div>
@@ -988,7 +994,14 @@ function t_rrhh_liquidacion(){
   if(!emps.length) return h+emptyCard('No hay empleados activos.');
   h += card('Resumen · '+fmtMesLargo(sel.slice(0,7)), `<div class="kpis">${kpi('Total del mes',fmt(sumTotal),'','',true)}${kpi('Cash a pagar',fmt(sumCash))}${kpi('Pagados',pagados+' de '+emps.length,calculados<emps.length?(emps.length-calculados)+' sin calcular':'')}</div>
     <div class="kv" style="margin-top:8px"><span class="k">IPC del mes</span><span class="v">${param?fmtPct(ipc):'-'}</span></div><div class="kv"><span class="k">Aumento del mes</span><span class="v">${param?fmtPct(aum):'-'}</span></div>`);
-  return h + card('Detalle por empleado', filas);
+  const kvL=(k,v,cls)=>`<div class="kv"><span class="k">${k}</span><span class="v ${cls||''}">${v}</span></div>`;
+  const totL = card('Totales · '+fmtMesLargo(sel.slice(0,7)),
+    kvL('Total mes anterior',fmt(tl.ant))+kvL('+ IPC',fmt(tl.ipc))+kvL('+ Aumento',fmt(tl.aum))+kvL('+ Horas extra',fmt(tl.he))+kvL('+ Feriados',fmt(tl.fer))+(tl.plus?kvL('+ Plus vacacional',fmt(tl.plus)):'')+kvL('− Ausencias',fmt(tl.aus),'neg')
+    +`<div class="kv big"><span class="k">Total mes</span><span class="v">${fmt(sumTotal)}</span></div>`
+    +kvL('− Adelantos',fmt(tl.adel),'neg')+kvL('− Recibo',fmt(tl.recibo))+kvL('± Redondeo',fmt(tl.red))
+    +`<div class="kv big"><span class="k">Cash</span><span class="v ${sumCash<0?'neg':''}">${fmt(sumCash)}</span></div>`
+    +kvL('Pagados',pagados+' de '+emps.length));
+  return h + card('Detalle por empleado', filas) + totL;
 }
 
 function t_rrhh_aumentos(){
