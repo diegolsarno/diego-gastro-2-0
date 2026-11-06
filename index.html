@@ -993,6 +993,7 @@
           <th>Apellido</th><th>Nombre</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Adelantos</th>
         </tr></thead>
         <tbody id="tblRrhhNovedades"></tbody>
+        <tfoot id="tfootRrhhNovedades"></tfoot>
       </table>
       </div>
       <div class="empty" id="emptyRrhhNovedades" style="display:none;">No hay empleados activos.</div>
@@ -1019,6 +1020,7 @@
           <th>Apellido</th><th>Nombre</th><th>Mes anterior</th><th>IPC</th><th>Aumento</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Total mes</th><th>Adelantos</th><th>Recibo</th><th>Redondeo</th><th>Cash</th><th>Pagado</th>
         </tr></thead>
         <tbody id="tblRrhhLiquidacion"></tbody>
+        <tfoot id="tfootRrhhLiquidacion"></tfoot>
       </table>
       </div>
       <div class="empty" id="emptyRrhhLiquidacion" style="display:none;">No hay empleados activos.</div>
@@ -4576,7 +4578,8 @@ function renderRrhhNovedades(){
 
   const empleadosActivos = data.empleados.filter(e=>e.activo).slice().sort((a,b)=>(a.apellido||'').localeCompare(b.apellido||''));
   const tbody = document.getElementById('tblRrhhNovedades');
-  if(empleadosActivos.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhNovedades').style.display='block'; return; }
+  const tfootN = document.getElementById('tfootRrhhNovedades');
+  if(empleadosActivos.length===0){ tbody.innerHTML=''; tfootN.innerHTML=''; document.getElementById('emptyRrhhNovedades').style.display='block'; return; }
   document.getElementById('emptyRrhhNovedades').style.display='none';
   tbody.innerHTML = empleadosActivos.map(e=>{
     const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhNovedadesMesVal) || {horasExtra:0,feriados:0,ausencias:0,plusVacacional:0,adelantos:0};
@@ -4588,6 +4591,12 @@ function renderRrhhNovedades(){
       <td><input type="number" step="0.01" class="caja-impuesto-input${ev.adelantos?' novedad-llena':''}" value="${ev.adelantos||''}" oninput="this.classList.toggle('novedad-llena', Number(this.value)!==0 && this.value!=='')" placeholder="0" onchange="guardarEventual('${e.id}','adelantos',this.value)"></td>
     </tr>`;
   }).join('');
+  const tn = {he:0, fer:0, aus:0, adel:0};
+  empleadosActivos.forEach(e=>{
+    const ev = data.rrhhEventuales.find(v=>v.empleadoId===e.id && v.mes===filtroRrhhNovedadesMesVal);
+    if(ev){ tn.he+=ev.horasExtra||0; tn.fer+=ev.feriados||0; tn.aus+=ev.ausencias||0; tn.adel+=ev.adelantos||0; }
+  });
+  tfootN.innerHTML = `<tr style="font-weight:800; border-top:2px solid var(--border); background:var(--panel2);"><td colspan="2">TOTAL</td><td>${tn.he}</td><td>${tn.fer}</td><td>${tn.aus}</td><td>${fmt(tn.adel)}</td></tr>`;
 }
 document.getElementById('filtroRrhhNovedadesMes').addEventListener('change', e=>{ filtroRrhhNovedadesMesVal = e.target.value; renderRrhhNovedades(); });
 async function guardarEventual(empleadoId, campo, valorStr){
@@ -4652,10 +4661,12 @@ function renderRrhhLiquidacion(){
 
   const empleadosActivos = data.empleados.filter(e=>e.activo).slice().sort((a,b)=>(a.apellido||'').localeCompare(b.apellido||''));
   const tbody = document.getElementById('tblRrhhLiquidacion');
-  if(empleadosActivos.length===0){ tbody.innerHTML=''; document.getElementById('emptyRrhhLiquidacion').style.display='block'; return; }
+  const tfootL = document.getElementById('tfootRrhhLiquidacion');
+  if(empleadosActivos.length===0){ tbody.innerHTML=''; tfootL.innerHTML=''; document.getElementById('emptyRrhhLiquidacion').style.display='block'; return; }
   document.getElementById('emptyRrhhLiquidacion').style.display='none';
   const ipcRate = param ? param.ipcRate : 0;
   const aumentoRate = param ? param.aumentoRate : 0;
+  const tl = {ant:0, ipc:0, aum:0, he:0, fer:0, aus:0, total:0, adel:0, recibo:0, red:0, cash:0, pag:0};
   tbody.innerHTML = empleadosActivos.map(e=>{
     const c = calcLiq(e.id, filtroRrhhLiqMesVal), ev = c.ev;
     const stored = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
@@ -4664,6 +4675,7 @@ function renderRrhhLiquidacion(){
     const recibo = stored ? stored.recibo : 0;
     const redondeo = stored ? (stored.redondeo||0) : 0;
     const cash = totalMesCalc - (ev.adelantos||0) - recibo + redondeo;
+    tl.ant+=totalAnterior; tl.ipc+=ipcMonto; tl.aum+=aumentoMonto; tl.he+=c.he; tl.fer+=c.fer; tl.aus+=c.aus; tl.total+=totalMesCalc; tl.adel+=(ev.adelantos||0); tl.recibo+=recibo; tl.red+=redondeo; tl.cash+=cash; if(stored && stored.pagado) tl.pag++;
     return `<tr>
       <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td>
       <td class="muted">${fmt(totalAnterior)}</td>
@@ -4680,6 +4692,7 @@ function renderRrhhLiquidacion(){
       <td>${stored ? `<input type="checkbox" ${stored.pagado?'checked':''} onchange="toggleLiquidacionPagada('${stored.id}', this.checked)">` : '<span class="muted">sin calcular</span>'}</td>
     </tr>`;
   }).join('');
+  tfootL.innerHTML = `<tr style="font-weight:800; border-top:2px solid var(--border); background:var(--panel2);"><td colspan="2">TOTAL</td><td>${fmt(tl.ant)}</td><td>${fmt(tl.ipc)}</td><td>${fmt(tl.aum)}</td><td>${fmt(tl.he)}</td><td>${fmt(tl.fer)}</td><td>${fmt(tl.aus)}</td><td>${fmt(tl.total)}</td><td>${fmt(tl.adel)}</td><td>${fmt(tl.recibo)}</td><td>${fmt(tl.red)}</td><td>${fmt(tl.cash)}</td><td>${tl.pag}/${empleadosActivos.length}</td></tr>`;
 }
 document.getElementById('filtroRrhhLiqMes').addEventListener('change', e=>{ filtroRrhhLiqMesVal = e.target.value; renderRrhhLiquidacion(); });
 document.getElementById('btnGuardarParametrosMes').addEventListener('click', async ()=>{
