@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brocoli PMS · Demo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:radial-gradient(1200px 700px at 50% 30%, #1d3f78 0%, #0c1a33 60%, #070e1d 100%);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#cfd8ea;
+  }
+  .stage{ position:relative; transform-origin:center center; }
+  .phone{
+    position:relative; width:430px; height:884px; padding:16px;
+    background:linear-gradient(145deg,#2b2f38,#0f1116 60%,#1b1e25);
+    border-radius:64px;
+    box-shadow:0 0 0 2px #3b404c, 0 0 0 5px #0a0b0f, 0 40px 90px rgba(0,0,0,.65), inset 0 0 6px rgba(255,255,255,.12);
+  }
+  .screen{ position:relative; width:100%; height:100%; border-radius:48px; overflow:hidden; background:#fff; }
+  .screen iframe{ width:100%; height:100%; border:0; display:block; background:#fff; }
+  .island{
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:120px; height:34px; background:#000; border-radius:20px; z-index:5; pointer-events:none;
+  }
+  .btn{ position:absolute; width:4px; background:#262a33; border-radius:2px; }
+  .btn.b1{ left:-4px; top:150px; height:34px; }
+  .btn.b2{ left:-4px; top:210px; height:62px; }
+  .btn.b3{ left:-4px; top:290px; height:62px; }
+  .btn.pw{ right:-4px; top:240px; height:96px; }
+  .hint{ position:fixed; bottom:10px; left:0; right:0; text-align:center; font-size:12px; opacity:.55; }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="phone">
+      <span class="btn b1"></span><span class="btn b2"></span><span class="btn b3"></span><span class="btn pw"></span>
+      <div class="screen">
+        <div class="island"></div>
+        <iframe src="movil.html" title="Brocoli PMS móvil" allow="publickey-credentials-get *; publickey-credentials-create *"></iframe>
+      </div>
+    </div>
+  </div>
+  <div class="hint">Brocoli PMS · versión móvil</div>
+<script>
+  /* Escala el teléfono para que entre siempre en la ventana (alto y ancho). */
+  function fit(){
+    var s = Math.min((window.innerHeight - 40) / 884, (window.innerWidth - 40) / 430, 1.25);
+    document.getElementById('stage').style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit); fit();
+</script>
+</body>
+</html>
