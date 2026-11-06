@@ -1978,7 +1978,9 @@ async function loadAll(){
       safeQuery(supa.from('precios_viandas_3t').select('*').eq('proyecto_id', pid).order('mes'), 'precios_viandas_3t'),
     ]);
 
-    data.proveedores = proveedoresD.map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||'', diasPago:(p.dias_pago===null||p.dias_pago===undefined)?null:p.dias_pago}));
+    /* Proveedores ficticios del proyecto Demo (ids dede0000-...): solo se ven dentro del Demo y no se mezclan con los locales reales. */
+    const esDemoProy = currentProyecto.id === 'd0000000-0000-4000-8000-000000000001';
+    data.proveedores = proveedoresD.filter(p=> String(p.id).startsWith('dede0000-') === esDemoProy).map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||'', diasPago:(p.dias_pago===null||p.dias_pago===undefined)?null:p.dias_pago}));
     data.familias = familiasD.map(f=>({id:f.id, nombre:f.nombre, tipoGasto:f.tipo_gasto}));
     data.precioHistorico = precioHistD.map(p=>({
       id:p.id, mes:p.mes, precio:Number(p.precio),
