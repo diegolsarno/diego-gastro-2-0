@@ -262,7 +262,7 @@
   <main id="content" class="hidden"></main>
   <div class="foot" id="bioFoot" style="padding:14px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v10</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v11</div>
 </div>
 
 <script>
@@ -567,7 +567,7 @@ async function cargarRrhh(){
   }));
   data.rrhhLiquidaciones = liq.map(l=>({
     id:l.id, empleadoId:l.empleado_id, mes:l.mes, totalMes:Number(l.total_mes)||0, recibo:Number(l.recibo)||0,
-    cash:Number(l.cash)||0, pagado:l.pagado,
+    cash:Number(l.cash)||0, redondeo:Number(l.redondeo)||0, pagado:l.pagado,
   }));
   data.rrhhLiquidacionesFinales = fin.map(f=>({
     id:f.id, empleadoNombre: f.empleados ? `${f.empleados.apellido}, ${f.empleados.nombre}` : '-',
@@ -947,14 +947,14 @@ function t_rrhh_liquidacion(){
     const st=data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===sel);
     const ant=cl.ant, ipcM=cl.ipcM, aumM=cl.aumM;
     const total=st?st.totalMes:cl.total;
-    const recibo=st?st.recibo:0, cash=total-(ev.adelantos||0)-recibo;
+    const recibo=st?st.recibo:0, redondeo=st?(st.redondeo||0):0, cash=total-(ev.adelantos||0)-recibo+redondeo;
     sumTotal+=total; sumCash+=cash; if(st){ calculados++; if(st.pagado) pagados++; }
     const kv=(k,v,cls)=> `<div class="kv"><span class="k">${k}</span><span class="v ${cls||''}">${v}</span></div>`;
     return `<div class="emp"><div class="nm"><span>${nombreEmp(e)}</span>${st?(st.pagado?'<span class="pill">Pagado</span>':'<span class="pill pend">Pendiente</span>'):'<span class="pill gray">Sin calcular</span>'}</div>
       ${kv('Total mes anterior',fmt(ant))}${kv('+ IPC',fmt(ipcM))}${kv('+ Aumento',fmt(aumM))}
       ${ev.horasExtra?kv('+ Horas extra ('+ev.horasExtra+' hs)',fmt(cl.he)):''}${ev.feriados?kv('+ Feriados ('+ev.feriados+')',fmt(cl.fer)):''}${ev.plusVacacional?kv('+ Plus vacacional',fmt(ev.plusVacacional)):''}${ev.ausencias?kv('− Ausencias ('+ev.ausencias+' d)',fmt(cl.aus),'neg'):''}
       <div class="kv big"><span class="k">Total mes</span><span class="v">${fmt(total)}</span></div>
-      ${ev.adelantos?kv('− Adelantos',fmt(ev.adelantos),'neg'):''}${kv('− Recibo',fmt(recibo))}
+      ${ev.adelantos?kv('− Adelantos',fmt(ev.adelantos),'neg'):''}${kv('− Recibo',fmt(recibo))}${redondeo?kv('± Redondeo',fmt(redondeo)):''}
       <div class="kv big"><span class="k">Cash</span><span class="v ${cash<0?'neg':''}">${fmt(cash)}</span></div></div>`;
   }).join('');
   let h = card('', `<div class="filt"><div class="f"><label>Mes</label><select onchange="setF('lMes',this.value)">${meses.map(m=>`<option value="${m}" ${m===sel?'selected':''}>${fmtMesLargo(m.slice(0,7))}</option>`).join('')}</select></div></div>`);

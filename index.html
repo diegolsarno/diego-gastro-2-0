@@ -1016,7 +1016,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Apellido</th><th>Nombre</th><th>Mes anterior</th><th>IPC</th><th>Aumento</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Total mes</th><th>Adelantos</th><th>Recibo</th><th>Cash</th><th>Pagado</th>
+          <th>Apellido</th><th>Nombre</th><th>Mes anterior</th><th>IPC</th><th>Aumento</th><th>Horas extra</th><th>Feriados</th><th>Ausencias</th><th>Total mes</th><th>Adelantos</th><th>Recibo</th><th>Redondeo</th><th>Cash</th><th>Pagado</th>
         </tr></thead>
         <tbody id="tblRrhhLiquidacion"></tbody>
       </table>
@@ -2031,7 +2031,7 @@ async function loadAll(){
     }));
     data.rrhhLiquidaciones = rrhhLiqD.map(l=>({
       id:l.id, empleadoId:l.empleado_id, mes:l.mes, totalMes:Number(l.total_mes)||0, recibo:Number(l.recibo)||0,
-      cash:Number(l.cash)||0, cambioNecesario:l.cambio_necesario||'', pagado:l.pagado,
+      cash:Number(l.cash)||0, redondeo:Number(l.redondeo)||0, cambioNecesario:l.cambio_necesario||'', pagado:l.pagado,
     }));
     data.rrhhLiquidacionesFinales = rrhhLiqFinalesD.map(f=>({
       id:f.id, empleadoId:f.empleado_id,
@@ -4587,7 +4587,7 @@ async function guardarEventual(empleadoId, campo, valorStr){
     const liq = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===filtroRrhhNovedadesMesVal);
     if(liq){
       const cl = calcLiq(empleadoId, filtroRrhhNovedadesMesVal);
-      const {error:e2} = await supa.from('rrhh_liquidaciones').update({total_mes:cl.total, cash: cl.total - (cl.ev.adelantos||0) - liq.recibo}).eq('id', liq.id);
+      const {error:e2} = await supa.from('rrhh_liquidaciones').update({total_mes:cl.total, cash: cl.total - (cl.ev.adelantos||0) - liq.recibo + (liq.redondeo||0)}).eq('id', liq.id);
       if(e2) throw e2;
       await loadAll();
     }
@@ -4641,7 +4641,8 @@ function renderRrhhLiquidacion(){
     const totalAnterior = c.ant, ipcMonto = c.ipcM, aumentoMonto = c.aumM;
     const totalMesCalc = stored ? stored.totalMes : c.total;
     const recibo = stored ? stored.recibo : 0;
-    const cash = totalMesCalc - (ev.adelantos||0) - recibo;
+    const redondeo = stored ? (stored.redondeo||0) : 0;
+    const cash = totalMesCalc - (ev.adelantos||0) - recibo + redondeo;
     return `<tr>
       <td>${escapeHtml(e.apellido)}</td><td>${escapeHtml(e.nombre)}</td>
       <td class="muted">${fmt(totalAnterior)}</td>
@@ -4653,6 +4654,7 @@ function renderRrhhLiquidacion(){
       <td><b>${fmt(totalMesCalc)}</b></td>
       <td class="muted">${fmt(ev.adelantos||0)}</td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${recibo||''}" placeholder="0" onchange="guardarReciboLiquidacion('${e.id}', this.value)"></td>
+      <td>${stored ? `<input type="number" step="0.01" class="caja-impuesto-input" value="${redondeo||''}" placeholder="0" title="Monto a sumar (o restar) para redondear el cash" onchange="guardarRedondeoLiquidacion('${e.id}', this.value)">` : '<span class="muted">-</span>'}</td>
       <td><b>${fmt(cash)}</b></td>
       <td>${stored ? `<input type="checkbox" ${stored.pagado?'checked':''} onchange="toggleLiquidacionPagada('${stored.id}', this.checked)">` : '<span class="muted">sin calcular</span>'}</td>
     </tr>`;
@@ -4684,7 +4686,8 @@ document.getElementById('btnCalcularLiquidacion').addEventListener('click', asyn
       const cl = calcLiq(e.id, filtroRrhhLiqMesVal), ev = cl.ev, totalMes = cl.total;
       const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===e.id && l.mes===filtroRrhhLiqMesVal);
       const recibo = existing ? existing.recibo : 0;
-      const cash = totalMes - (ev.adelantos||0) - recibo;
+      const redondeo = existing ? (existing.redondeo||0) : 0;
+      const cash = totalMes - (ev.adelantos||0) - recibo + redondeo;
       const payload = {total_mes:totalMes, recibo:recibo, cash:cash};
       if(existing){
         const {error} = await supa.from('rrhh_liquidaciones').update(payload).eq('id', existing.id);
@@ -4705,7 +4708,7 @@ async function guardarReciboLiquidacion(empleadoId, valorStr){
     const cl = calcLiq(empleadoId, mes), ev = cl.ev;
     const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===mes);
     const totalMes = existing ? existing.totalMes : cl.total;
-    const cash = totalMes - (ev.adelantos||0) - recibo;
+    const cash = totalMes - (ev.adelantos||0) - recibo + (existing ? (existing.redondeo||0) : 0);
     if(existing){
       const {error} = await supa.from('rrhh_liquidaciones').update({recibo, cash}).eq('id', existing.id);
       if(error) throw error;
@@ -4715,6 +4718,20 @@ async function guardarReciboLiquidacion(empleadoId, valorStr){
     }
     await loadAll();
   }catch(e){ alert('Error guardando el recibo: ' + e.message); }
+}
+/* Redondeo: monto que se completa a mano para redondear el cash a pagar. Cash = Total mes - Adelantos - Recibo + Redondeo. */
+async function guardarRedondeoLiquidacion(empleadoId, valorStr){
+  const redondeo = Number(valorStr) || 0;
+  try{
+    const mes = filtroRrhhLiqMesVal;
+    const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===mes);
+    if(!existing){ alert('Primero calculá el mes.'); return; }
+    const ev = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===mes) || {adelantos:0};
+    const cash = existing.totalMes - (ev.adelantos||0) - existing.recibo + redondeo;
+    const {error} = await supa.from('rrhh_liquidaciones').update({redondeo, cash}).eq('id', existing.id);
+    if(error) throw error;
+    await loadAll();
+  }catch(e){ alert('Error guardando el redondeo: ' + e.message); }
 }
 async function toggleLiquidacionPagada(id, pagado){
   try{
