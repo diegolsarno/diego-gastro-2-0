@@ -620,7 +620,7 @@
     <button class="btn secondary small app-hidden" id="btnCambiarProyecto" onclick="volverAlPicker()">🔀 Cambiar Local</button>
     <button class="btn secondary small" id="btnThemeToggle" onclick="toggleTheme()">🌙</button>
     <button class="btn secondary small" id="btnHelp" onclick="openHelp()" title="Ayuda y preguntas frecuentes" aria-label="Ayuda y preguntas frecuentes">❓</button>
-    <button class="btn secondary small" id="btnDemoMovil" onclick="window.open('demo.html','_blank')" title="Ver la app del celular" aria-label="Ver la app del celular">📱</button>
+    <button class="btn secondary small app-hidden" id="btnDemoMovil" onclick="window.open('demo.html','_blank')" title="Ver la app del celular" aria-label="Ver la app del celular">📱</button>
     <button class="btn secondary small" id="btnLogoutHeader" onclick="doLogout()">Cerrar sesión</button>
   </div>
 </header>
@@ -1391,6 +1391,7 @@
     <div class="field"><label>Usuario</label><div id="asignarUsuarioEmail" class="hint" style="margin-top:0;"></div></div>
     <div class="field"><label>Establecimiento</label><select id="asignarUsuarioProyecto"><option value="">— sin asignar —</option></select></div>
     <div class="field"><label><input type="checkbox" id="asignarUsuarioAdmin" style="width:auto; margin-right:6px;">Es administrador</label></div>
+    <div class="field" id="asignarUsuarioDemoField"><label><input type="checkbox" id="asignarUsuarioDemo" style="width:auto; margin-right:6px;">Puede ver la demo del celular</label></div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalAsignarUsuario')">Cancelar</button>
       <button class="btn" onclick="guardarAsignacionUsuario()">Guardar</button>
@@ -1899,6 +1900,12 @@ async function entrarAlProyecto(){
   headerEl.innerHTML = (currentProyecto.logoUrl ? `<img src="${escapeHtml(currentProyecto.logoUrl)}" class="proyecto-logo-header" alt="">` : '') + escapeHtml(currentProyecto.nombre);
   const btnCambiar = document.getElementById('btnCambiarProyecto');
   const navUsuarios = document.getElementById('navUsuarios');
+  /* Boton de la demo del celular: solo el super admin, o quien el haya autorizado (profiles.puede_demo). */
+  const btnDemo = document.getElementById('btnDemoMovil');
+  if(btnDemo){
+    const veDemo = (currentUser && currentUser.email===SUPER_ADMIN_EMAIL) || (currentProfile && currentProfile.puede_demo === true);
+    btnDemo.classList.toggle('app-hidden', !veDemo);
+  }
   if(currentProfile && currentProfile.is_admin){
     btnCambiar.classList.remove('app-hidden');
     navUsuarios.classList.remove('app-hidden');
@@ -4307,6 +4314,9 @@ function abrirAsignarUsuario(id){
   sel.innerHTML = '<option value="">— sin asignar —</option>' + proyectosDisponibles.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
   sel.value = u.proyecto_id || '';
   document.getElementById('asignarUsuarioAdmin').checked = !!u.is_admin;
+  document.getElementById('asignarUsuarioDemo').checked = u.puede_demo === true;
+  document.getElementById('asignarUsuarioDemo').dataset.orig = u.puede_demo === true ? '1' : '0';
+  document.getElementById('asignarUsuarioDemoField').style.display = (currentUser && currentUser.email===SUPER_ADMIN_EMAIL) ? '' : 'none';
   openModal('modalAsignarUsuario');
 }
 async function guardarAsignacionUsuario(){
@@ -4314,7 +4324,11 @@ async function guardarAsignacionUsuario(){
   const proyecto_id = document.getElementById('asignarUsuarioProyecto').value || null;
   const is_admin = document.getElementById('asignarUsuarioAdmin').checked;
   try{
-    const {error} = await supa.from('profiles').update({proyecto_id, is_admin}).eq('id', id);
+    const payload = {proyecto_id, is_admin};
+    /* puede_demo solo se envia si cambio (asi no falla si la columna todavia no existe) */
+    const chkDemo = document.getElementById('asignarUsuarioDemo');
+    if(currentUser && currentUser.email===SUPER_ADMIN_EMAIL && (chkDemo.checked ? '1' : '0') !== chkDemo.dataset.orig) payload.puede_demo = chkDemo.checked;
+    const {error} = await supa.from('profiles').update(payload).eq('id', id);
     if(error) throw error;
     closeModal('modalAsignarUsuario');
     await renderUsuarios();
