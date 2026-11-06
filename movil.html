@@ -262,7 +262,7 @@
   <main id="content" class="hidden"></main>
   <div class="foot" id="bioFoot" style="padding:14px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v13</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v14</div>
 </div>
 
 <script>
@@ -433,15 +433,26 @@ function eerrGastosPorMes(){
     const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
     map[k][fam] = (map[k][fam]||0) + g.total;
   });
-  /* Sueldos: viajan solos desde RRHH > Liquidación mensual (total del mes, todo junto en SUELDOS).
-     Si un mes ya tiene gastos cargados a mano con familia SUELDOS, se respeta eso y no se suma
-     de nuevo para evitar duplicar. */
-  const mesesConSueldoManual = new Set();
-  Object.keys(map).forEach(k=>{ if(map[k]['SUELDOS']) mesesConSueldoManual.add(k); });
+  /* Costos laborales: viajan solos desde RRHH > Liquidación mensual, empleado por empleado:
+       ADELANTOS     = adelantos del mes
+       HORAS EXTRA   = horas extra en pesos
+       SUELDOS       = el saldo (total del mes - adelantos - horas extra)
+     Desde EERR_LABORAL_DESDE. Antes de esa fecha (cuando horas extra/feriados se cargaban en pesos)
+     todo el total del mes va a SUELDOS. Si un mes ya tiene gastos cargados a mano en alguna de
+     estas familias, esa familia se respeta tal cual y no se suma de nuevo (evita duplicar). */
+  const EERR_LABORAL_DESDE = '2026-10';
+  const manual = {};
+  Object.keys(map).forEach(k=>{ manual[k] = {}; ['SUELDOS','ADELANTOS','HORAS EXTRA'].forEach(f=>{ if(map[k][f]) manual[k][f] = true; }); });
+  const sumar = (k, fam, v)=>{ if(!v || (manual[k] && manual[k][fam])) return; if(!map[k]) map[k] = {}; map[k][fam] = (map[k][fam]||0) + v; };
   (data.rrhhLiquidaciones||[]).forEach(l=>{
-    const k = monthKey(l.mes); if(!k || mesesConSueldoManual.has(k)) return;
-    if(!map[k]) map[k] = {};
-    map[k]['SUELDOS'] = (map[k]['SUELDOS']||0) + (l.totalMes||0);
+    const k = monthKey(l.mes); if(!k) return;
+    const total = l.totalMes||0;
+    if(k < EERR_LABORAL_DESDE){ sumar(k,'SUELDOS',total); return; }
+    const c = calcLiq(l.empleadoId, l.mes);
+    const adel = (c.ev && c.ev.adelantos) || 0, he = c.he || 0;
+    sumar(k,'ADELANTOS',adel);
+    sumar(k,'HORAS EXTRA',he);
+    sumar(k,'SUELDOS', total - adel - he);
   });
   /* Impuestos MP / Impuestos Bco.: casillas cargadas a mano día a día en Ventas y
      Caja. No suman al Total día de esa tabla, pero sí viajan diariamente a estas
@@ -531,12 +542,16 @@ async function qSoft(p){ try{ const r=await p; return r.error?[]:(r.data||[]); }
 
 async function cargarAdmin(){
   const pid = currentProyecto.id;
-  const [v,g,s,lq] = await Promise.all([
+  const [v,g,s,lq,evq,paq] = await Promise.all([
     q(supa.from('ventas_diarias').select('*').eq('proyecto_id',pid).order('fecha')),
     q(supa.from('gastos').select('*, proveedores(nombre), familias(nombre)').eq('proyecto_id',pid).order('fecha_fc',{ascending:false})),
     qSoft(supa.from('egresos_saldos_iniciales').select('*').eq('proyecto_id',pid)),
     qSoft(supa.from('rrhh_liquidaciones').select('*').eq('proyecto_id',pid)),
+    qSoft(supa.from('rrhh_eventuales').select('*').eq('proyecto_id',pid)),
+    qSoft(supa.from('rrhh_parametros_mes').select('*').eq('proyecto_id',pid)),
   ]);
+  data.rrhhEventuales = evq.map(v=>({empleadoId:v.empleado_id, mes:v.mes, horasExtra:Number(v.horas_extra)||0, feriados:Number(v.feriados)||0, ausencias:Number(v.ausencias)||0, plusVacacional:Number(v.plus_vacacional)||0, adelantos:Number(v.adelantos)||0}));
+  data.rrhhParametrosMes = paq.map(p=>({mes:p.mes, ipcRate:Number(p.ipc_rate)||0, aumentoRate:Number(p.aumento_rate)||0}));
   data.rrhhLiquidaciones = lq.map(l=>({id:l.id, empleadoId:l.empleado_id, mes:l.mes, totalMes:Number(l.total_mes)||0, recibo:Number(l.recibo)||0, cash:Number(l.cash)||0, redondeo:Number(l.redondeo)||0, cambioNecesario:l.cambio_necesario||'', pagado:l.pagado}));
   data.ventasDiarias = v.map(v=>({
     id:v.id, fecha:v.fecha,

@@ -3745,15 +3745,26 @@ function eerrGastosPorMes(){
     const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
     map[k][fam] = (map[k][fam]||0) + g.total;
   });
-  /* Sueldos: viajan solos desde RRHH > Liquidación mensual (total del mes, todo junto en SUELDOS).
-     Si un mes ya tiene gastos cargados a mano con familia SUELDOS, se respeta eso y no se suma
-     de nuevo para evitar duplicar. */
-  const mesesConSueldoManual = new Set();
-  Object.keys(map).forEach(k=>{ if(map[k]['SUELDOS']) mesesConSueldoManual.add(k); });
+  /* Costos laborales: viajan solos desde RRHH > Liquidación mensual, empleado por empleado:
+       ADELANTOS     = adelantos del mes
+       HORAS EXTRA   = horas extra en pesos
+       SUELDOS       = el saldo (total del mes - adelantos - horas extra)
+     Desde EERR_LABORAL_DESDE. Antes de esa fecha (cuando horas extra/feriados se cargaban en pesos)
+     todo el total del mes va a SUELDOS. Si un mes ya tiene gastos cargados a mano en alguna de
+     estas familias, esa familia se respeta tal cual y no se suma de nuevo (evita duplicar). */
+  const EERR_LABORAL_DESDE = '2026-10';
+  const manual = {};
+  Object.keys(map).forEach(k=>{ manual[k] = {}; ['SUELDOS','ADELANTOS','HORAS EXTRA'].forEach(f=>{ if(map[k][f]) manual[k][f] = true; }); });
+  const sumar = (k, fam, v)=>{ if(!v || (manual[k] && manual[k][fam])) return; if(!map[k]) map[k] = {}; map[k][fam] = (map[k][fam]||0) + v; };
   (data.rrhhLiquidaciones||[]).forEach(l=>{
-    const k = monthKey(l.mes); if(!k || mesesConSueldoManual.has(k)) return;
-    if(!map[k]) map[k] = {};
-    map[k]['SUELDOS'] = (map[k]['SUELDOS']||0) + (l.totalMes||0);
+    const k = monthKey(l.mes); if(!k) return;
+    const total = l.totalMes||0;
+    if(k < EERR_LABORAL_DESDE){ sumar(k,'SUELDOS',total); return; }
+    const c = calcLiq(l.empleadoId, l.mes);
+    const adel = (c.ev && c.ev.adelantos) || 0, he = c.he || 0;
+    sumar(k,'ADELANTOS',adel);
+    sumar(k,'HORAS EXTRA',he);
+    sumar(k,'SUELDOS', total - adel - he);
   });
   /* Impuestos MP / Impuestos Bco.: casillas cargadas a mano día a día en Ventas y
      Caja. No suman al Total día de esa tabla, pero sí viajan diariamente a estas
