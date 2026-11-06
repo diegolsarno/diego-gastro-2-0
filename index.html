@@ -4654,7 +4654,7 @@ function renderRrhhLiquidacion(){
       <td><b>${fmt(totalMesCalc)}</b></td>
       <td class="muted">${fmt(ev.adelantos||0)}</td>
       <td><input type="number" step="0.01" class="caja-impuesto-input" value="${recibo||''}" placeholder="0" onchange="guardarReciboLiquidacion('${e.id}', this.value)"></td>
-      <td>${stored ? `<input type="number" step="0.01" class="caja-impuesto-input" value="${redondeo||''}" placeholder="0" title="Monto a sumar (o restar) para redondear el cash" onchange="guardarRedondeoLiquidacion('${e.id}', this.value)">` : '<span class="muted">-</span>'}</td>
+      <td><input type="number" step="0.01" class="caja-impuesto-input" value="${redondeo||''}" placeholder="0" title="Monto a sumar (o restar, con signo menos) para redondear el cash" onchange="guardarRedondeoLiquidacion('${e.id}', this.value)"></td>
       <td><b>${fmt(cash)}</b></td>
       <td>${stored ? `<input type="checkbox" ${stored.pagado?'checked':''} onchange="toggleLiquidacionPagada('${stored.id}', this.checked)">` : '<span class="muted">sin calcular</span>'}</td>
     </tr>`;
@@ -4725,11 +4725,17 @@ async function guardarRedondeoLiquidacion(empleadoId, valorStr){
   try{
     const mes = filtroRrhhLiqMesVal;
     const existing = data.rrhhLiquidaciones.find(l=>l.empleadoId===empleadoId && l.mes===mes);
-    if(!existing){ alert('Primero calculá el mes.'); return; }
-    const ev = data.rrhhEventuales.find(v=>v.empleadoId===empleadoId && v.mes===mes) || {adelantos:0};
-    const cash = existing.totalMes - (ev.adelantos||0) - existing.recibo + redondeo;
-    const {error} = await supa.from('rrhh_liquidaciones').update({redondeo, cash}).eq('id', existing.id);
-    if(error) throw error;
+    const cl = calcLiq(empleadoId, mes), ev = cl.ev;
+    if(!existing){
+      /* si el mes todavia no estaba calculado para este empleado, se calcula y se guarda junto con el redondeo */
+      const cash = cl.total - (ev.adelantos||0) + redondeo;
+      const {error} = await supa.from('rrhh_liquidaciones').insert({empleado_id:empleadoId, mes, proyecto_id:currentProyecto.id, total_mes:cl.total, recibo:0, cash, redondeo});
+      if(error) throw error;
+    }else{
+      const cash = existing.totalMes - (ev.adelantos||0) - existing.recibo + redondeo;
+      const {error} = await supa.from('rrhh_liquidaciones').update({redondeo, cash}).eq('id', existing.id);
+      if(error) throw error;
+    }
     await loadAll();
   }catch(e){ alert('Error guardando el redondeo: ' + e.message); }
 }
