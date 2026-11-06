@@ -3745,6 +3745,16 @@ function eerrGastosPorMes(){
     const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
     map[k][fam] = (map[k][fam]||0) + g.total;
   });
+  /* Sueldos: viajan solos desde RRHH > Liquidación mensual (total del mes, todo junto en SUELDOS).
+     Si un mes ya tiene gastos cargados a mano con familia SUELDOS, se respeta eso y no se suma
+     de nuevo para evitar duplicar. */
+  const mesesConSueldoManual = new Set();
+  Object.keys(map).forEach(k=>{ if(map[k]['SUELDOS']) mesesConSueldoManual.add(k); });
+  (data.rrhhLiquidaciones||[]).forEach(l=>{
+    const k = monthKey(l.mes); if(!k || mesesConSueldoManual.has(k)) return;
+    if(!map[k]) map[k] = {};
+    map[k]['SUELDOS'] = (map[k]['SUELDOS']||0) + (l.totalMes||0);
+  });
   /* Impuestos MP / Impuestos Bco.: casillas cargadas a mano día a día en Ventas y
      Caja. No suman al Total día de esa tabla, pero sí viajan diariamente a estas
      líneas del EERR. */

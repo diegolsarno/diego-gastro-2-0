@@ -262,7 +262,7 @@
   <main id="content" class="hidden"></main>
   <div class="foot" id="bioFoot" style="padding:14px 0 8px"></div>
   <div class="foot" id="bioMsg" style="padding:0 16px 8px;color:var(--orange)"></div>
-  <div class="foot" style="padding:0 0 24px;opacity:.6">v11</div>
+  <div class="foot" style="padding:0 0 24px;opacity:.6">v12</div>
 </div>
 
 <script>
@@ -433,6 +433,16 @@ function eerrGastosPorMes(){
     const fam = (g.familiaNombre || '(sin familia)').trim().toUpperCase();
     map[k][fam] = (map[k][fam]||0) + g.total;
   });
+  /* Sueldos: viajan solos desde RRHH > Liquidación mensual (total del mes, todo junto en SUELDOS).
+     Si un mes ya tiene gastos cargados a mano con familia SUELDOS, se respeta eso y no se suma
+     de nuevo para evitar duplicar. */
+  const mesesConSueldoManual = new Set();
+  Object.keys(map).forEach(k=>{ if(map[k]['SUELDOS']) mesesConSueldoManual.add(k); });
+  (data.rrhhLiquidaciones||[]).forEach(l=>{
+    const k = monthKey(l.mes); if(!k || mesesConSueldoManual.has(k)) return;
+    if(!map[k]) map[k] = {};
+    map[k]['SUELDOS'] = (map[k]['SUELDOS']||0) + (l.totalMes||0);
+  });
   /* Impuestos MP / Impuestos Bco.: casillas cargadas a mano día a día en Ventas y
      Caja. No suman al Total día de esa tabla, pero sí viajan diariamente a estas
      líneas del EERR. */
@@ -521,11 +531,13 @@ async function qSoft(p){ try{ const r=await p; return r.error?[]:(r.data||[]); }
 
 async function cargarAdmin(){
   const pid = currentProyecto.id;
-  const [v,g,s] = await Promise.all([
+  const [v,g,s,lq] = await Promise.all([
     q(supa.from('ventas_diarias').select('*').eq('proyecto_id',pid).order('fecha')),
     q(supa.from('gastos').select('*, proveedores(nombre), familias(nombre)').eq('proyecto_id',pid).order('fecha_fc',{ascending:false})),
     qSoft(supa.from('egresos_saldos_iniciales').select('*').eq('proyecto_id',pid)),
+    qSoft(supa.from('rrhh_liquidaciones').select('*').eq('proyecto_id',pid)),
   ]);
+  data.rrhhLiquidaciones = lq.map(l=>({id:l.id, empleadoId:l.empleado_id, mes:l.mes, totalMes:Number(l.total_mes)||0, recibo:Number(l.recibo)||0, cash:Number(l.cash)||0, redondeo:Number(l.redondeo)||0, cambioNecesario:l.cambio_necesario||'', pagado:l.pagado}));
   data.ventasDiarias = v.map(v=>({
     id:v.id, fecha:v.fecha,
     restauranteEfectivo:Number(v.restaurante_efectivo)||0, restauranteBco:Number(v.restaurante_bco)||0, restauranteMp:Number(v.restaurante_mp)||0,
