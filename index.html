@@ -1342,7 +1342,7 @@
     <h3 id="modalFamiliaTitle">Nueva familia</h3>
     <input type="hidden" id="familiaId">
     <div class="field"><label>Nombre</label><input id="familiaNombre" placeholder="Ej: VERDURAS Y FRUTAS"></div>
-    <div class="field"><label>Tipo de gasto</label><input id="familiaTipoGasto" placeholder="Ej: COMIDAS"></div>
+    <div class="field"><label>Tipo de gasto</label><input id="familiaTipoGasto" list="tipoGastoDatalist" placeholder="Ej: COMIDAS"><datalist id="tipoGastoDatalist"><option value="COMIDAS"><option value="BEBIDAS"><option value="OPERATIVOS"></datalist></div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalFamilia')">Cancelar</button>
       <button class="btn" onclick="saveFamilia()">Guardar</button>
@@ -1375,7 +1375,7 @@
     <div class="field"><label>Nombre</label><input id="proveedorNombre" placeholder="Ej: SIPE"></div>
     <div class="row2">
       <div class="field"><label>Familia</label><select id="proveedorFamilia"><option value="">— sin familia —</option></select></div>
-      <div class="field"><label>Tipo de gasto (por defecto)</label><input id="proveedorTipoGastoDefault" placeholder="Ej: COMIDAS"></div>
+      <div class="field"><label>Tipo de gasto (por defecto)</label><input id="proveedorTipoGastoDefault" list="tipoGastoDatalist" placeholder="Ej: COMIDAS"></div>
     </div>
     <div class="field"><label>Fecha de pago (días desde la fecha de factura)</label><input id="proveedorDiasPago" type="number" min="0" step="1" placeholder="Ej: 30 (vacío = sin plazo)"></div>
     <div class="modal-actions">
@@ -1514,7 +1514,7 @@
       </select>
     </div>
     <div class="row2">
-      <div class="field"><label>Tipo de gasto</label><input id="gastoTipoGasto" placeholder="Ej: COMIDAS"></div>
+      <div class="field"><label>Tipo de gasto</label><input id="gastoTipoGasto" list="tipoGastoDatalist" placeholder="Ej: COMIDAS"></div>
       <div class="field"><label>Tipo de comprobante</label><select id="gastoTipoComprobante"><option value="">— sin especificar —</option><option value="A">A</option><option value="B">B</option><option value="Remito">Remito</option><option value="Nota de crédito">Nota de crédito</option></select></div>
     </div>
     <div class="row2">
@@ -3977,6 +3977,13 @@ function exportarPDFEerr(mesDesde, mesHasta){
 /* ---------- Familias ---------- */
 function fillFamiliaDatalist(){
   document.getElementById('familiaListDatalist').innerHTML = data.familias.map(f=>`<option value="${escapeHtml(f.nombre)}">`).join('');
+  /* Sugerencias de "Tipo de gasto": los tres fijos + cualquier otro ya usado en familias/proveedores/gastos. */
+  const tipos = new Set(['COMIDAS','BEBIDAS','OPERATIVOS']);
+  (data.familias||[]).forEach(f=>{ if(f.tipoGasto) tipos.add(String(f.tipoGasto).trim().toUpperCase()); });
+  (data.proveedores||[]).forEach(p=>{ if(p.tipoGastoDefault) tipos.add(String(p.tipoGastoDefault).trim().toUpperCase()); });
+  (data.gastos||[]).forEach(g=>{ if(g.tipoGasto) tipos.add(String(g.tipoGasto).trim().toUpperCase()); });
+  const el = document.getElementById('tipoGastoDatalist');
+  if(el) el.innerHTML = [...tipos].filter(Boolean).map(t=>`<option value="${escapeHtml(t)}">`).join('');
 }
 function renderFamilias(){
   const tbody = document.getElementById('tblFamilias');
