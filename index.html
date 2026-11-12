@@ -1452,12 +1452,6 @@
       <div class="field"><label>MP</label><input id="cajaDiariaParrillaMp" type="number" step="0.01" placeholder="0"></div>
     </div>
 
-    <div class="field-group-label">Viandas y 3ros tiempos</div>
-    <div class="row2">
-      <div class="field"><label>Cantidad de viandas</label><input id="cajaDiariaViandasCantidad" type="number" step="1" placeholder="0"></div>
-      <div class="field"><label>Cantidad de 3ros tiempos</label><input id="cajaDiariaTercerosCantidad" type="number" step="1" placeholder="0"></div>
-    </div>
-
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalCajaDiaria')">Cancelar</button>
       <button class="btn" id="btnGuardarCajaDiaria" onclick="saveCajaDiaria()">Guardar</button>
@@ -2868,8 +2862,8 @@ function renderVentasCaja(){
       const claseFila = monthKey(v.fecha)!==mesActualV ? ' class="fila-mes-anterior"' : '';
       return `<tr${claseFila}>
         <td class="fecha-hover" data-caja-id="${v.id}" style="cursor:default;">${fmtDate(v.fecha)}</td><td>${fmt(v.total)}</td><td>${fmt(kioscoTotal)}</td><td>${fmt(chiringoTotal)}</td>
-        <td>${fmt(v.viandasTotal)}<span class="muted"> (${v.viandasCantidad})</span></td>
-        <td>${fmt(v.terceirosTotal)}<span class="muted"> (${v.terceirosCantidad})</span></td>
+        <td><input type="number" step="1" min="0" class="caja-impuesto-input" style="width:64px;" value="${v.viandasCantidad || ''}" placeholder="0" onchange="guardarCantidadCaja('${v.id}','viandas', this.value)"> <span>${fmt(v.viandasTotal)}</span></td>
+        <td><input type="number" step="1" min="0" class="caja-impuesto-input" style="width:64px;" value="${v.terceirosCantidad || ''}" placeholder="0" onchange="guardarCantidadCaja('${v.id}','terceros', this.value)"> <span>${fmt(v.terceirosTotal)}</span></td>
         <td>${fmt(parrillaTotal)}</td><td><b>${fmt(totalDia)}</b></td>
         <td><input type="number" step="0.01" class="caja-impuesto-input" value="${v.impuestosMp || ''}" placeholder="0" onchange="guardarImpuestoCaja('${v.id}','impuestos_mp', this.value)"></td>
         <td><input type="number" step="0.01" class="caja-impuesto-input" value="${v.impuestosBco || ''}" placeholder="0" onchange="guardarImpuestoCaja('${v.id}','impuestos_bco', this.value)"></td>
@@ -3105,8 +3099,7 @@ document.getElementById('btnAddCajaDiaria').addEventListener('click', ()=>{
   ['cajaDiariaRestEfectivo','cajaDiariaRestBco','cajaDiariaRestMp',
    'cajaDiariaKioscoEfectivo','cajaDiariaKioscoMp',
    'cajaDiariaChiringoEfectivo','cajaDiariaChiringoMp',
-   'cajaDiariaParrillaEfectivo','cajaDiariaParrillaMp',
-   'cajaDiariaViandasCantidad','cajaDiariaTercerosCantidad'].forEach(id=>{
+   'cajaDiariaParrillaEfectivo','cajaDiariaParrillaMp'].forEach(id=>{
     document.getElementById(id).value = '';
   });
   const hoy = new Date().toISOString().slice(0,10);
@@ -3123,8 +3116,8 @@ async function saveCajaDiaria(){
   const restauranteEfectivo = num('cajaDiariaRestEfectivo');
   const restauranteBco = num('cajaDiariaRestBco');
   const restauranteMp = num('cajaDiariaRestMp');
-  const viandasCantidadVal = num('cajaDiariaViandasCantidad');
-  const terceirosCantidadVal = num('cajaDiariaTercerosCantidad');
+  /* Viandas y 3ros tiempos ya no se cargan acá: se completan en la tabla de Ventas diarias. */
+  const viandasCantidadVal = 0, terceirosCantidadVal = 0;
   const precioV3TMes = precioViandas3TParaMes(fecha.slice(0,7)+'-01');
   const payload = {
     fecha,
@@ -3166,6 +3159,24 @@ async function guardarImpuestoCaja(id, campo, valorStr){
     if(campo==='impuestos_mp') v.impuestosMp = valor; else v.impuestosBco = valor;
     renderEerr();
   }catch(e){ alert('Error guardando el impuesto: ' + e.message); }
+}
+
+/* Viandas / 3ros tiempos: se completa la cantidad en la fila del día; el total en $ se calcula
+   con el precio del mes (igual que antes) y se suma al Total día y al EERR. */
+async function guardarCantidadCaja(id, tipo, valorStr){
+  const cant = Math.max(0, Number(valorStr) || 0);
+  const v = data.ventasDiarias.find(x=>x.id===id);
+  if(!v) return;
+  const p = precioViandas3TParaMes(monthKey(v.fecha)+'-01');
+  const esV = tipo==='viandas';
+  const total = cant * (esV ? p.precioVianda : p.precio3t);
+  const upd = esV ? {viandas_cantidad: cant, viandas_total: total} : {terceros_cantidad: cant, terceros_total: total};
+  try{
+    const {error} = await supa.from('ventas_diarias').update(upd).eq('id', id);
+    if(error) throw error;
+    if(esV){ v.viandasCantidad = cant; v.viandasTotal = total; } else { v.terceirosCantidad = cant; v.terceirosTotal = total; }
+    renderVentasCaja(); renderEerr();
+  }catch(e){ alert('Error guardando la cantidad: ' + e.message); }
 }
 
 /* ---------- Gastos ---------- */
