@@ -819,7 +819,7 @@
       <div class="table-scroll">
       <table>
         <thead><tr>
-          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Chiringo</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th>Impuestos MP</th><th>Impuestos TC</th><th></th>
+          <th>Fecha</th><th>Restaurante</th><th>Kiosco</th><th>Plaza</th><th>Viandas</th><th>3ros Tiempos</th><th>Parrilla</th><th>Total día</th><th>Impuestos MP</th><th>Impuestos TC</th><th></th>
         </tr></thead>
         <tbody id="tblVentas"></tbody>
       </table>
@@ -874,7 +874,7 @@
             <th colspan="4" class="grp grp-rest">Restaurante</th>
             <th colspan="4" class="grp grp-viandas">Viandas y 3ros tiempos</th>
             <th colspan="4" class="grp grp-kiosco">Kiosco</th>
-            <th colspan="3" class="grp grp-chiringo">Chiringo</th>
+            <th colspan="3" class="grp grp-chiringo">Plaza</th>
             <th colspan="3" class="grp grp-parrilla">Parrilla</th>
             <th rowspan="2" class="grp grp-totales">Total mes</th>
           </tr>
@@ -1440,7 +1440,7 @@
       <div class="field"><label>MP</label><input id="cajaDiariaKioscoMp" type="number" step="0.01" placeholder="0"></div>
     </div>
 
-    <div class="field-group-label">Chiringo</div>
+    <div class="field-group-label">Plaza</div>
     <div class="row2">
       <div class="field"><label>Efectivo</label><input id="cajaDiariaChiringoEfectivo" type="number" step="0.01" placeholder="0"></div>
       <div class="field"><label>MP</label><input id="cajaDiariaChiringoMp" type="number" step="0.01" placeholder="0"></div>
@@ -2877,7 +2877,7 @@ const VENTAS_SECTORES = [
   {key:'restaurante', label:'Restaurante', formas:{Efectivo:v=>v.restauranteEfectivo, Banco:v=>v.restauranteBco, MP:v=>v.restauranteMp}},
   {key:'parrilla', label:'Parrilla', formas:{Efectivo:v=>v.parrillaEfectivo, MP:v=>v.parrillaMp}},
   {key:'kiosco', label:'Kiosco', formas:{Efectivo:v=>v.kioscoEfectivo, Banco:v=>v.kioscoBco, MP:v=>v.kioscoMp}},
-  {key:'chiringo', label:'Chiringo', formas:{Efectivo:v=>v.chiringoEfectivo||0, MP:v=>v.chiringoMp||0}},
+  {key:'chiringo', label:'Plaza', formas:{Efectivo:v=>v.chiringoEfectivo||0, MP:v=>v.chiringoMp||0}},
 ];
 const VENTAS_FORMAS_PAGO = ['Efectivo', 'Banco', 'MP'];
 const VENTAS_OTROS = [
@@ -3048,7 +3048,7 @@ function renderTotales(){
     return `<h4>Caja del ${fmtDate(v.fecha)}</h4>`
       + grupo('Restaurante', [['Efectivo', fmt(v.restauranteEfectivo)], ['Banco', fmt(v.restauranteBco)], ['MP', fmt(v.restauranteMp)]])
       + grupo('Kiosco', kiosco)
-      + grupo('Chiringo', [['Efectivo', fmt(v.chiringoEfectivo||0)], ['MP', fmt(v.chiringoMp||0)]])
+      + grupo('Plaza', [['Efectivo', fmt(v.chiringoEfectivo||0)], ['MP', fmt(v.chiringoMp||0)]])
       + grupo('Parrilla', [['Efectivo', fmt(v.parrillaEfectivo)], ['MP', fmt(v.parrillaMp)]])
       + grupo('Viandas y 3ros tiempos', [['Cantidad de viandas', v.viandasCantidad], ['Cantidad de 3ros tiempos', v.terceirosCantidad]]);
   }
@@ -3322,7 +3322,7 @@ function exportarPDFTotales(mesDesde, mesHasta){
     m.parrillaEfectivo += v.parrillaEfectivo; m.parrillaMp += v.parrillaMp;
   });
   const keysOrdenadas = [...meses.keys()].sort();
-  const columnas = ['Mes','Rest. Total','Rest. Efectivo','Rest. Banco','Rest. MP','Viandas Total','Viandas Cant.','3ros Total','3ros Cant.','Kiosco Total','Kiosco Efectivo','Kiosco Banco','Kiosco MP','Chiringo Total','Chiringo Efectivo','Chiringo MP','Parrilla Total','Parrilla Efectivo','Parrilla MP','Total mes'];
+  const columnas = ['Mes','Rest. Total','Rest. Efectivo','Rest. Banco','Rest. MP','Viandas Total','Viandas Cant.','3ros Total','3ros Cant.','Kiosco Total','Kiosco Efectivo','Kiosco Banco','Kiosco MP','Plaza Total','Plaza Efectivo','Plaza MP','Parrilla Total','Parrilla Efectivo','Parrilla MP','Total mes'];
   const tot = {rest:0,restEf:0,restBco:0,restMp:0,via:0,viaCant:0,ter:0,terCant:0,kio:0,kioEf:0,kioBco:0,kioMp:0,chi:0,chiEf:0,chiMp:0,par:0,parEf:0,parMp:0,mes:0};
   const filas = keysOrdenadas.map(key=>{
     const m = meses.get(key);

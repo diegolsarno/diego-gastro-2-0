@@ -802,7 +802,7 @@ function t_admin_ventas(){
           scales:{y:{ticks:{callback:v=>fmtCorto(v),maxTicksLimit:5},grid:{color:css('--border')}},x:{grid:{display:false}}}}});
       if(!anio){ const mejor=rows.reduce((a,b)=>totalDia(b)>totalDia(a)?b:a); $('vFoot').textContent=`Mejor día: ${fmtDiaMes(mejor.fecha)} (${fmt(totalDia(mejor))})`; }
     });
-    const sect=[['Restaurante',rows.reduce((s,v)=>s+v.total,0)],['Kiosco',rows.reduce((s,v)=>s+v.kioscoEfectivo+v.kioscoBco+v.kioscoMp,0)],['Chiringo',rows.reduce((s,v)=>s+v.chiringoEfectivo+v.chiringoMp,0)],['Parrilla',rows.reduce((s,v)=>s+v.parrillaEfectivo+v.parrillaMp,0)],['Viandas',viandas],['3ros tiempos',terc]].filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+    const sect=[['Restaurante',rows.reduce((s,v)=>s+v.total,0)],['Kiosco',rows.reduce((s,v)=>s+v.kioscoEfectivo+v.kioscoBco+v.kioscoMp,0)],['Plaza',rows.reduce((s,v)=>s+v.chiringoEfectivo+v.chiringoMp,0)],['Parrilla',rows.reduce((s,v)=>s+v.parrillaEfectivo+v.parrillaMp,0)],['Viandas',viandas],['3ros tiempos',terc]].filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
     h += card('Ventas por sector', `<div class="chartbox"><canvas id="chS"></canvas></div><div class="legend">${sect.map((s,i)=>`<div class="row"><span class="dot" style="background:${PALETA[i%PALETA.length]}"></span><span class="nm">${s[0]}</span><span class="vl">${fmt(s[1])}</span><span class="pc">${fmtPct(s[1]/total)}</span></div>`).join('')}</div>`);
     postRender.push(()=>{ charts.s=new Chart($('chS'),{type:'doughnut',data:{labels:sect.map(s=>s[0]),datasets:[{data:sect.map(s=>s[1]),backgroundColor:sect.map((_,i)=>PALETA[i%PALETA.length]),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.label+': '+fmt(i.parsed)}}}}}); });
   }
@@ -826,7 +826,7 @@ function cajaDetalle(v){
   return `<div class="det">
     ${head('Restaurante',v.total)}${sub('Efectivo',v.restauranteEfectivo)}${sub('Banco',v.restauranteBco)}${sub('Mercado Pago',v.restauranteMp)}
     ${head('Kiosco',kt)}${sub('Efectivo',v.kioscoEfectivo)}${sub('Banco',v.kioscoBco)}${sub('Mercado Pago',v.kioscoMp)}
-    ${head('Chiringo',ct)}${sub('Efectivo',v.chiringoEfectivo)}${sub('Mercado Pago',v.chiringoMp)}
+    ${head('Plaza',ct)}${sub('Efectivo',v.chiringoEfectivo)}${sub('Mercado Pago',v.chiringoMp)}
     ${head('Parrilla',pt)}${sub('Efectivo',v.parrillaEfectivo)}${sub('Mercado Pago',v.parrillaMp)}
     ${head('Viandas ('+v.viandasCantidad+')',v.viandasTotal)}${head('3ros tiempos ('+v.terceirosCantidad+')',v.terceirosTotal)}
     <div class="l h"><span>Cobrado por medio</span><span></span></div>${sub('Efectivo',ef)}${sub('Banco',bc)}${sub('Mercado Pago',mp)}
