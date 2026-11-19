@@ -2010,7 +2010,7 @@ async function loadAll(){
       familiaNombre:(g.familias && g.familias.nombre) ? g.familias.nombre : '-',
       tipoGasto:g.tipo_gasto, tipoComprobante:g.tipo_comprobante, control:g.control,
       nComprobante:g.n_comprobante, total:Number(g.total)||0, iva:Number(g.iva)||0, otrosImpuestos:Number(g.otros_impuestos)||0,
-      tipoPersonal:g.tipo_personal||'',
+      tipoPersonal:g.tipo_personal||'', facturaPath:g.factura_path||'',
     }));
     data.ventasDiarias = ventasD.map(v=>({
       id:v.id, fecha:v.fecha,
@@ -3231,6 +3231,7 @@ function renderGastos(){
     <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button>${g.formaPago==='E-check' && g.echeckNumero ? `<small class="muted" style="margin-left:4px; font-size:10.5px;" title="N° de e-check">#${escapeHtml(g.echeckNumero)}</small>` : ''}</td>
     <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
     <td class="actions">
+      ${g.facturaPath ? `<button class="btn secondary small" onclick="verFacturaGasto('${g.id}')" title="Ver la factura guardada">📎</button>` : ''}
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
     </td></tr>`).join('');
@@ -4510,6 +4511,42 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
 });
 
 
+/* ---------- Archivo de la factura: se achica al guardar el gasto y se sube a Storage (bucket privado "facturas") ---------- */
+const FACTURA_MAX_LADO = 1600, FACTURA_CALIDAD = 0.72, FACTURA_MAX_PDF = 4*1024*1024;
+async function lfComprimirImagen(file){
+  const bmp = await createImageBitmap(file, {imageOrientation:'from-image'});
+  const esc = Math.min(1, FACTURA_MAX_LADO/Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width*esc); cv.height = Math.round(bmp.height*esc);
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(ok=> cv.toBlob(ok, 'image/jpeg', FACTURA_CALIDAD));
+  if(!blob) throw new Error('No se pudo achicar la imagen');
+  return {blob, ext:'jpg', tipo:'image/jpeg'};
+}
+/* Devuelve {path} si se subió, o {error} (sin frenar el guardado del gasto) */
+async function subirArchivoFactura(file){
+  try{
+    const esImg = /^image\//.test(file.type) || /\.(jpe?g|png|webp|bmp)$/i.test(file.name);
+    let pack;
+    if(esImg) pack = await lfComprimirImagen(file);
+    else{
+      if(file.size > FACTURA_MAX_PDF) return {error:'El PDF pesa más de 4 MB, no se guardó el archivo.'};
+      pack = {blob:file, ext:'pdf', tipo:'application/pdf'};
+    }
+    const hoy = new Date(); const rnd = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random().toString(16).slice(2));
+    const path = `${currentProyecto.id}/${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}/${rnd}.${pack.ext}`;
+    const {error} = await supa.storage.from('facturas').upload(path, pack.blob, {contentType: pack.tipo, upsert:false});
+    if(error) return {error: error.message};
+    return {path, kb: Math.round(pack.blob.size/1024)};
+  }catch(e){ return {error: e.message}; }
+}
+async function verFacturaGasto(id){
+  const g = data.gastos.find(x=>x.id===id);
+  if(!g || !g.facturaPath){ alert('Este gasto no tiene factura guardada.'); return; }
+  const {data:d, error} = await supa.storage.from('facturas').createSignedUrl(g.facturaPath, 300);
+  if(error || !d){ alert('No pude abrir la factura: ' + (error ? error.message : 'sin acceso')); return; }
+  window.open(d.signedUrl, '_blank');
+}
+
 /* ---------- Lector de facturas (PDF) ----------
    Lee el PDF en el navegador (sin enviar nada a ningún servidor):
    1) QR de ARCA/AFIP: fecha, CUIT emisor, tipo, punto de venta, número e importe total.
@@ -4878,10 +4915,11 @@ async function lfProcesarArchivo(file){
     const nComp = q ? String(q.ptoVta).padStart(4,'0') + '-' + String(q.nroCmp).padStart(8,'0') : (t.nComprobante || '');
     const tipo = lfTipoComprobante(q ? Number(q.tipoCmp) : null, texto);
     const prov = lfBuscarProveedor(texto, q ? q.cuit : null);
-    window.lfPendienteCuit = q && q.cuit ? String(q.cuit) : null;
     const esNC = tipo==='Nota de crédito';
     /* Abrir "Nuevo gasto" y completar */
     document.getElementById('btnAddGasto').click();
+    window.lfPendienteCuit = q && q.cuit ? String(q.cuit) : null;
+    window.lfArchivoPendiente = file;
     document.getElementById('gastoFechaFc').value = fecha;
     if(!document.getElementById('gastoFechaCarga').value) document.getElementById('gastoFechaCarga').value = new Date().toISOString().slice(0,10);
     if(prov){ document.getElementById('gastoProveedor').value = prov.id; aplicarDefaultsProveedorEnGasto(); }
@@ -5603,29 +5641,45 @@ async function saveGasto(){
   const total = Number(document.getElementById('gastoTotal').value)||0; const camposObligatoriosGasto = ['gastoProveedor','gastoFamilia','gastoTipoGasto','gastoTipoComprobante','gastoNComprobante','gastoTotal']; let faltantesGasto = []; camposObligatoriosGasto.forEach(cid=>{ const el = document.getElementById(cid); const vacio = !el.value || !el.value.trim(); el.classList.toggle('campo-error', vacio); if(vacio) faltantesGasto.push(cid); }); if(faltantesGasto.length>0){ alert('Completá todos los campos obligatorios antes de guardar.'); return; }
   const tipo_personal = gastoModalContext==='laborales' ? (document.getElementById('gastoTipoPersonal').value || null) : null;
   const payload = {fecha_fc, fecha_carga, fecha_pago, proveedor_id, familia_id, tipo_gasto, tipo_comprobante, n_comprobante, iva, otros_impuestos, total, tipo_personal};
+  let avisoArchivo = '';
   try{
     if(id){
       const {error} = await supa.from('gastos').update(payload).eq('id', id);
       if(error) throw error;
     }else{
-      const {error} = await supa.from('gastos').insert({...payload, proyecto_id: currentProyecto.id});
+      /* Si el gasto salió de una factura leída, se guarda también el archivo (las fotos se achican) */
+      let subida = null;
+      if(window.lfArchivoPendiente){
+        subida = await subirArchivoFactura(window.lfArchivoPendiente);
+        if(subida.error){ avisoArchivo = 'El gasto se guardó, pero no pude guardar el archivo de la factura: ' + subida.error; subida = null; }
+      }
+      let {error} = await supa.from('gastos').insert({...payload, proyecto_id: currentProyecto.id, ...(subida ? {factura_path: subida.path} : {})});
+      if(error && subida && /factura_path/i.test(error.message||'')){
+        /* la columna todavía no existe: se guarda el gasto sin archivo y se borra lo subido */
+        try{ await supa.storage.from('facturas').remove([subida.path]); }catch(e){}
+        avisoArchivo = 'El gasto se guardó sin el archivo: falta preparar la base (columna factura_path).';
+        ({error} = await supa.from('gastos').insert({...payload, proyecto_id: currentProyecto.id}));
+      }
       if(error) throw error;
       /* Si el gasto salió de una factura leída con QR, el CUIT queda asociado al proveedor elegido */
       if(window.lfPendienteCuit && proveedor_id){
         const pv = data.proveedores.find(x=>x.id===proveedor_id);
         if(pv && !pv.cuit){ try{ await supa.from('proveedores').update({cuit: window.lfPendienteCuit}).eq('id', proveedor_id); }catch(e){} }
       }
-      window.lfPendienteCuit = null;
+      window.lfPendienteCuit = null; window.lfArchivoPendiente = null;
     }
     closeModal('modalGasto');
     await loadAll();
+    if(avisoArchivo) alert(avisoArchivo);
   }catch(e){ alert('Error guardando gasto: ' + e.message); }
 }
 async function deleteGasto(id){
   if(!confirm('¿Eliminar este gasto?')) return;
   try{
+    const _g = data.gastos.find(x=>x.id===id);
     const {error} = await supa.from('gastos').delete().eq('id', id);
     if(error) throw error;
+    if(_g && _g.facturaPath){ try{ await supa.storage.from('facturas').remove([_g.facturaPath]); }catch(e){} }
     await loadAll();
   }catch(e){ alert('Error eliminando gasto: ' + e.message); }
 }
@@ -5659,7 +5713,7 @@ function filterHelp(q){
   flush();
   document.getElementById('helpEmpty').classList.toggle('app-hidden', any);
 }
-function openModal(id){ if(id==='modalGasto'){ const av = document.getElementById('lfAviso'); if(av) av.style.display = 'none'; } document.getElementById(id).classList.add('open'); }
+function openModal(id){ if(id==='modalGasto'){ const av = document.getElementById('lfAviso'); if(av) av.style.display = 'none'; window.lfPendienteCuit = null; window.lfArchivoPendiente = null; } document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 /* ---------- Insumos ---------- */
