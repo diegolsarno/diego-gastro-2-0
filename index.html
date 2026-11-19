@@ -2074,10 +2074,34 @@ async function loadAll(){
     }));
 
     renderAll();
+    limpiarFacturasVencidas();
   }catch(e){
     alert('Error cargando los datos: ' + e.message + '\n\nRevisá que hayas corrido el schema.sql y que la URL/API key sean correctas.');
     console.error(e);
   }
+}
+
+/* Las facturas guardadas se borran a los 90 días (el gasto queda, solo se quita el archivo y el clip) */
+const FACTURA_DIAS_VIDA = 90;
+function fechaSubidaFactura(path){
+  const m = /\/(\d{4})(\d{2})(\d{2})_[^\/]+$/.exec(path);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const f = /\/(\d{4})-(\d{2})\//.exec(path);              /* archivos sin fecha en el nombre: se cuenta desde el fin del mes */
+  return f ? new Date(+f[1], +f[2], 0) : null;
+}
+async function limpiarFacturasVencidas(){
+  try{
+    const limite = new Date(); limite.setHours(0,0,0,0); limite.setDate(limite.getDate() - FACTURA_DIAS_VIDA);
+    const vencidos = data.gastos.filter(g=>{ if(!g.facturaPath) return false; const d = fechaSubidaFactura(g.facturaPath); return d && d < limite; });
+    if(!vencidos.length) return;
+    const {error:eRm} = await supa.storage.from('facturas').remove(vencidos.map(g=>g.facturaPath));
+    if(eRm) return;
+    const ids = vencidos.map(g=>g.id);
+    const {error:eUp} = await supa.from('gastos').update({factura_path:null}).in('id', ids);
+    if(eUp) return;
+    vencidos.forEach(g=>{ g.facturaPath = ''; });
+    renderAll();
+  }catch(e){ console.warn('limpiarFacturasVencidas', e); }
 }
 
 function uid(){ return crypto.randomUUID ? crypto.randomUUID() : (Date.now()+Math.random()).toString(36); }
@@ -4539,7 +4563,8 @@ async function subirArchivoFactura(file){
       pack = {blob:file, ext:'pdf', tipo:'application/pdf'};
     }
     const hoy = new Date(); const rnd = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random().toString(16).slice(2));
-    const path = `${currentProyecto.id}/${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}/${rnd}.${pack.ext}`;
+    const ymd = hoy.getFullYear()+String(hoy.getMonth()+1).padStart(2,'0')+String(hoy.getDate()).padStart(2,'0');
+    const path = `${currentProyecto.id}/${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}/${ymd}_${rnd}.${pack.ext}`;
     const {error} = await supa.storage.from('facturas').upload(path, pack.blob, {contentType: pack.tipo, upsert:false});
     if(error) return {error: error.message};
     return {path, kb: Math.round(pack.blob.size/1024)};
