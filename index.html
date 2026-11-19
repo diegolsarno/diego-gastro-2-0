@@ -1988,7 +1988,7 @@ async function loadAll(){
 
     /* Proveedores ficticios del proyecto Demo (ids dede0000-...): solo se ven dentro del Demo y no se mezclan con los locales reales. */
     const esDemoProy = currentProyecto.id === 'd0000000-0000-4000-8000-000000000001';
-    data.proveedores = proveedoresD.filter(p=> String(p.id).startsWith('dede0000-') === esDemoProy).map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||'', diasPago:(p.dias_pago===null||p.dias_pago===undefined)?null:p.dias_pago}));
+    data.proveedores = proveedoresD.filter(p=> String(p.id).startsWith('dede0000-') === esDemoProy).map(p=>({id:p.id, nombre:p.nombre, familiaId:p.familia_id||'', tipoGastoDefault:p.tipo_gasto_default||'', diasPago:(p.dias_pago===null||p.dias_pago===undefined)?null:p.dias_pago, cuit:p.cuit||''}));
     data.familias = familiasD.map(f=>({id:f.id, nombre:f.nombre, tipoGasto:f.tipo_gasto}));
     data.precioHistorico = precioHistD.map(p=>({
       id:p.id, mes:p.mes, precio:Number(p.precio),
@@ -4681,6 +4681,49 @@ function lfTipoComprobante(codigo, texto){
   }
   return '';
 }
+/* ---- Resolutor de importes (no depende de las etiquetas que lea el OCR) ----
+   Toma todos los importes que aparecen en el texto y busca el neto y el IVA que cumplan
+   IVA = neto x alícuota; lo que sobra hasta el total son percepciones / otros impuestos. */
+function lfRedondear(v){ return Math.round(v*100)/100; }
+function lfMontos(texto){
+  const set = new Set(); const re = /(?<![\d.,])(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})(?!\d)/g; let m;
+  while((m = re.exec(texto))){ const v = lfNum(m[0]); if(v!==null && v>0) set.add(lfRedondear(v)); }
+  return [...set];
+}
+function lfResolverImportes(montos, total){
+  if(!total || total<=0 || montos.length<2) return null;
+  const RATES = [0.21, 0.105, 0.27, 0.05, 0.025];
+  const eq = (a,b,t)=> Math.abs(a-b) <= (t||0.02);
+  const hay = v=> montos.some(x=> eq(x, v, 0.02));
+  const pares = [];
+  montos.forEach(n=>{
+    if(n >= total) return;
+    RATES.forEach(r=>{ const i = lfRedondear(n*r); if(i>0 && hay(i) && n+i <= total+0.011) pares.push({n, i, r}); });
+  });
+  /* el resto se explica si es 0, o es un importe del texto (o 2x / suma de dos) */
+  const explica = rem=>{
+    if(Math.abs(rem) <= 0.011) return 100;
+    if(hay(rem)) return 85;
+    for(let k=2;k<=3;k++) if(montos.some(x=> eq(x*k, rem, 0.03))) return 75;
+    for(let a=0;a<montos.length;a++) for(let b=a+1;b<montos.length;b++) if(eq(montos[a]+montos[b], rem, 0.03)) return 70;
+    return 0;
+  };
+  let mejor = null;
+  const evaluar = sel=>{
+    const sumN = sel.reduce((s,x)=>s+x.n,0), sumI = sel.reduce((s,x)=>s+x.i,0);
+    const rem = lfRedondear(total - sumN - sumI);
+    if(rem < -0.011 || rem > total*0.25) return;
+    const sc = explica(rem);
+    if(sc < 70) return;
+    const puntaje = sc + (sumN+sumI)/total*50;
+    if(!mejor || puntaje > mejor.puntaje) mejor = {iva: lfRedondear(sumI), neto: lfRedondear(sumN), otros: Math.max(0, rem), puntaje, base: sc};
+  };
+  pares.forEach(a=> evaluar([a]));
+  for(let x=0;x<pares.length;x++) for(let y=x+1;y<pares.length;y++){
+    if(pares[x].r!==pares[y].r && pares[x].n!==pares[y].n) evaluar([pares[x], pares[y]]);
+  }
+  return mejor;
+}
 /* IVA, otros impuestos y otros datos desde el texto */
 function lfParseTexto(texto, total){
   const out = {iva:null, otros:null, fecha:null, nComprobante:null, total:null, vencimiento:null};
@@ -4727,6 +4770,13 @@ function lfParseTexto(texto, total){
       if(d > 0.5) out.otros = d;
     }
   }
+  /* Total de respaldo si no se leyó la etiqueta: el mayor importe del ticket (se avisa para revisar) */
+  const montos = lfMontos(texto);
+  const totalUsado = total || null;
+  if(totalUsado){
+    const sol = lfResolverImportes(montos, totalUsado);
+    if(sol && sol.base >= 70){ out.iva = sol.iva; out.otros = sol.otros; out.neto = sol.neto; out.porResolutor = true; }
+  }
   /* Fecha */
   const f = texto.match(/Fecha\s+de\s+Emisi[oó]n\s*:?\s*(\d{2})[\/-](\d{2})[\/-](\d{4})/i) || texto.match(/Fecha(?:\s+\w{2,4}\.?)?\s*:?\s*(\d{2})\s*[\/-]\s*(\d{2})\s*[\/-]\s*(\d{4})/i);
   if(f) out.fecha = f[3]+'-'+f[2]+'-'+f[1];
@@ -4739,12 +4789,24 @@ function lfParseTexto(texto, total){
   /* Total */
   const t = texto.match(/Importe\s+Total\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/i) || texto.match(/^\s*TOTAL\b[^\d\n]{0,12}\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/im);
   if(t) out.total = lfNum(t[1]);
+  if(out.total===null && montos.length){ out.total = Math.max(...montos); out.totalEstimado = true; }
   return out;
 }
 function lfNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
-/* Busca entre los proveedores cargados el que aparece en el texto de la factura */
+/* Distancia de edición (para tolerar letras mal leídas por el OCR) */
+function lfLev(a,b){
+  const m=a.length, n=b.length; if(!m) return n; if(!n) return m;
+  let prev = Array.from({length:n+1}, (_,j)=>j);
+  for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)); prev=cur; }
+  return prev[n];
+}
+const LF_PALABRAS_VACIAS = new Set(['sas','srl','sociedad','por','acciones','simplificadas','distribuidora','comercial','industrial','los','las','del','the']);
+/* Busca entre los proveedores cargados el que aparece en la factura: primero por CUIT (exacto), después por nombre */
 function lfBuscarProveedor(texto, cuit){
-  const t = ' ' + lfNorm(texto) + ' ';
+  const solo = c=> String(c||'').replace(/\D/g,'');
+  if(cuit){ const p = (data.proveedores||[]).find(x=> x.cuit && solo(x.cuit)===solo(cuit)); if(p) return p; }
+  const normTxt = lfNorm(texto);
+  const t = ' ' + normTxt + ' ';
   let mejor = null, mejorLen = 0;
   (data.proveedores||[]).forEach(p=>{
     const n = lfNorm(p.nombre);
@@ -4752,10 +4814,13 @@ function lfBuscarProveedor(texto, cuit){
     if(t.includes(' ' + n + ' ') && n.length>mejorLen){ mejor = p; mejorLen = n.length; }
   });
   if(mejor) return mejor;
-  /* Por palabras: todas las palabras (de 3+ letras) del proveedor aparecen en el texto */
+  const palTexto = [...new Set(normTxt.split(' ').filter(w=>w.length>=3))];
   (data.proveedores||[]).forEach(p=>{
-    const pal = lfNorm(p.nombre).split(' ').filter(w=>w.length>=3);
-    if(pal.length && pal.every(w=>t.includes(' '+w)) && pal.join('').length>mejorLen){ mejor = p; mejorLen = pal.join('').length; }
+    const pal = lfNorm(p.nombre).split(' ').filter(w=>w.length>=3 && !LF_PALABRAS_VACIAS.has(w));
+    if(!pal.length) return;
+    const ok = pal.every(w=>{ const tol = w.length<=4 ? 0 : (w.length<=7 ? 1 : 2); return palTexto.some(x=> Math.abs(x.length-w.length)<=tol && lfLev(x,w)<=tol); });
+    const len = pal.join('').length;
+    if(ok && len>mejorLen){ mejor = p; mejorLen = len; }
   });
   return mejor;
 }
@@ -4781,7 +4846,8 @@ async function lfProcesarArchivo(file){
     const fecha = (q && q.fecha) || t.fecha || '';
     const nComp = q ? String(q.ptoVta).padStart(4,'0') + '-' + String(q.nroCmp).padStart(8,'0') : (t.nComprobante || '');
     const tipo = lfTipoComprobante(q ? Number(q.tipoCmp) : null, texto);
-    const prov = lfBuscarProveedor(texto);
+    const prov = lfBuscarProveedor(texto, q ? q.cuit : null);
+    window.lfPendienteCuit = q && q.cuit ? String(q.cuit) : null;
     const esNC = tipo==='Nota de crédito';
     /* Abrir "Nuevo gasto" y completar */
     document.getElementById('btnAddGasto').click();
@@ -4802,6 +4868,8 @@ async function lfProcesarArchivo(file){
     if(!q && total===null) avisos.push('No pude leer el total.');
     if(!prov){ const rs = lfRazonSocial(texto); avisos.push('Proveedor no encontrado' + (rs ? ' (razón social detectada: ' + rs + ')' : '') + '. Elegilo o agregalo con "+ Proveedor".'); }
     if(t.iva===null) avisos.push('No pude leer el IVA.');
+    else if(t.porResolutor) avisos.push('IVA y percepciones calculados con los importes de la factura.');
+    if(t.totalEstimado) avisos.push('No encontré el total con seguridad: puse el mayor importe leído, controlalo.');
     if(esNC) avisos.push('Es nota de crédito: cargué los importes en negativo.');
     lfMostrarAviso(avisos.join(' '));
   }catch(e){
@@ -5507,6 +5575,12 @@ async function saveGasto(){
     }else{
       const {error} = await supa.from('gastos').insert({...payload, proyecto_id: currentProyecto.id});
       if(error) throw error;
+      /* Si el gasto salió de una factura leída con QR, el CUIT queda asociado al proveedor elegido */
+      if(window.lfPendienteCuit && proveedor_id){
+        const pv = data.proveedores.find(x=>x.id===proveedor_id);
+        if(pv && !pv.cuit){ try{ await supa.from('proveedores').update({cuit: window.lfPendienteCuit}).eq('id', proveedor_id); }catch(e){} }
+      }
+      window.lfPendienteCuit = null;
     }
     closeModal('modalGasto');
     await loadAll();
