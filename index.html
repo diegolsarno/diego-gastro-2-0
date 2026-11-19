@@ -4654,11 +4654,16 @@ function lfTipoComprobante(codigo, texto){
   if(mc){ const k = Number(mc[1]); if([1,81,2].includes(k)) return 'A'; if([6,82,7].includes(k)) return 'B'; if([11,111,112].includes(k)) return 'C'; if([3,8,13].includes(k)) return 'Nota de crédito'; }
   const m = texto.match(/factura\s*["“”'`]?\s*([abc])\s*["“”'`]?(?=[\s(\n]|$)/i);
   if(m) return m[1].toUpperCase();
+  /* Recuadro con la letra sola ("A" y debajo "001" / "COD. 001") */
+  const lin = texto.split('\n').map(l=>l.trim()).filter(Boolean).slice(0, 25);
+  for(let i=0;i<lin.length;i++){
+    if(/^[ABC]$/.test(lin[i]) && (!lin[i+1] || /^(?:c[oó]d\.?\s*)?0*(1|6|11|81|82|111)$/i.test(lin[i+1]))) return lin[i];
+  }
   return '';
 }
 /* IVA, otros impuestos y otros datos desde el texto */
 function lfParseTexto(texto, total){
-  const out = {iva:null, otros:null, fecha:null, nComprobante:null, total:null};
+  const out = {iva:null, otros:null, fecha:null, nComprobante:null, total:null, vencimiento:null};
   const lineas = texto.split('\n');
   /* IVA por alícuota: "IVA 21% $ 1.234,00", "IVA 10,5%: 123,45" */
   const porAlicuota = {};
@@ -4705,6 +4710,9 @@ function lfParseTexto(texto, total){
   /* Fecha */
   const f = texto.match(/Fecha\s+de\s+Emisi[oó]n\s*:?\s*(\d{2})[\/-](\d{2})[\/-](\d{4})/i) || texto.match(/Fecha(?:\s+\w{2,4}\.?)?\s*:?\s*(\d{2})\s*[\/-]\s*(\d{2})\s*[\/-]\s*(\d{4})/i);
   if(f) out.fecha = f[3]+'-'+f[2]+'-'+f[1];
+  /* Vencimiento de pago (no el del CAE) */
+  const vl = lineas.find(l=> /vencimiento/i.test(l) && !/cae|vto\.?\s*cae/i.test(l) && /\d{2}\s*[\/-]\s*\d{2}\s*[\/-]\s*\d{4}/.test(l));
+  if(vl){ const vm = vl.match(/(\d{2})\s*[\/-]\s*(\d{2})\s*[\/-]\s*(\d{4})/); out.vencimiento = vm[3]+'-'+vm[2]+'-'+vm[1]; }
   /* Número 0000-00000000 */
   const n = texto.match(/(?:N[°ºo]?\.?|Comp\.?\s*Nro\.?:?)\s*:?\s*(\d{4,5})\s*-\s*(\d{8})/i) || texto.match(/\b(\d{4,5})-(\d{8})\b/);
   if(n) out.nComprobante = n[1].padStart(4,'0') + '-' + n[2];
@@ -4732,8 +4740,8 @@ function lfBuscarProveedor(texto, cuit){
   return mejor;
 }
 function lfRazonSocial(texto){
-  const m = texto.match(/Raz[oó]n\s+Social\s*:?\s*([^\n]{3,60})/i);
-  if(m) return m[1].trim();
+  const re = /Raz[oó]n\s+Social\s*:?\s*([^\n]{3,60})/gi; let m;
+  while((m = re.exec(texto))){ if(!/nesting/i.test(m[1])) return m[1].trim(); }
   /* Tickets: la razón social suele ser una de las primeras líneas y termina en S.A./S.R.L./S.A.S. */
   const lin = texto.split('\n').map(l=>l.trim()).filter(Boolean).slice(0, 14);
   const c = lin.find(l=> /\b(S\.?\s?A\.?|S\.?\s?R\.?\s?L\.?|S\.?\s?A\.?\s?S\.?)\s*$/i.test(l) && !/nesting/i.test(l));
@@ -4766,6 +4774,7 @@ async function lfProcesarArchivo(file){
     if(t.iva!==null) document.getElementById('gastoIva').value = esNC ? -Math.abs(t.iva) : t.iva;
     if(t.otros!==null) document.getElementById('gastoOtrosImpuestos').value = esNC ? -Math.abs(t.otros) : t.otros;
     calcularFechaPagoDesdeProveedor();
+    if(t.vencimiento && (!fecha || t.vencimiento >= fecha)){ document.getElementById('gastoFechaPago').value = t.vencimiento; gastoFechaPagoManual = true; }
     /* Aviso de lo que se leyó y de lo que hay que revisar */
     const avisos = [];
     avisos.push(q ? 'Leído con el QR de ARCA.' : 'No encontré un QR legible: datos tomados del texto, revisalos con cuidado.');
