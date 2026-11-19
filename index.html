@@ -4557,15 +4557,35 @@ async function lfOcr(canvas, onProgreso){
     return (r && r.data && r.data.text) || '';
   } finally { try{ await worker.terminate(); }catch(e){} }
 }
-/* QR sobre un canvas, probando varios tamaños */
-function lfBuscarQrEnCanvas(cv){
-  for(const f of [1, 0.6, 0.4, 1.5]){
-    const w = Math.max(200, Math.round(cv.width*f)), h = Math.max(200, Math.round(cv.height*f));
-    const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
-    const x2 = c2.getContext('2d', {willReadFrequently:true}); x2.drawImage(cv, 0, 0, w, h);
-    const img = x2.getImageData(0,0,w,h);
-    const r = window.jsQR(img.data, w, h, {inversionAttempts:'attemptBoth'});
-    if(r && r.data && lfParseQr(r.data)) return r.data;
+/* QR sobre un canvas: primero el detector nativo del navegador (muy robusto con fotos torcidas),
+   después jsQR sobre el canvas entero y sobre recortes (el QR suele estar abajo) a varios tamaños. */
+async function lfBuscarQrEnCanvas(cv){
+  if('BarcodeDetector' in window){
+    try{
+      const det = new window.BarcodeDetector({formats:['qr_code']});
+      const regiones = [[0,0,1,1],[0,0.5,1,0.5],[0,0.6,0.6,0.4],[0.4,0.6,0.6,0.4],[0,0,1,0.4]];
+      for(const [rx,ry,rw,rh] of regiones){
+        const w = Math.round(cv.width*rw), h = Math.round(cv.height*rh);
+        const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+        c2.getContext('2d').drawImage(cv, Math.round(cv.width*rx), Math.round(cv.height*ry), w, h, 0, 0, w, h);
+        const r = await det.detect(c2);
+        for(const b of r){ if(b.rawValue && lfParseQr(b.rawValue)) return b.rawValue; }
+      }
+    }catch(e){}
+  }
+  const regiones = [[0,0,1,1],[0,0.5,1,0.5],[0,0.6,0.6,0.4],[0.4,0.6,0.6,0.4],[0,0,1,0.4]];
+  for(const [rx,ry,rw,rh] of regiones){
+    for(const f of [1, 0.6, 1.5, 0.4]){
+      const sw = Math.round(cv.width*rw), sh = Math.round(cv.height*rh);
+      const w = Math.max(200, Math.round(sw*f)), h = Math.max(200, Math.round(sh*f));
+      if(w>4200 || h>4200) continue;
+      const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+      const x2 = c2.getContext('2d', {willReadFrequently:true});
+      x2.drawImage(cv, Math.round(cv.width*rx), Math.round(cv.height*ry), sw, sh, 0, 0, w, h);
+      const img = x2.getImageData(0,0,w,h);
+      const r = window.jsQR(img.data, w, h, {inversionAttempts:'attemptBoth'});
+      if(r && r.data && lfParseQr(r.data)) return r.data;
+    }
   }
   return null;
 }
@@ -4577,7 +4597,7 @@ async function lfLeerImagen(file, onProgreso){
   const max = 2600, esc = Math.min(1, max/Math.max(bmp.width, bmp.height));
   const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width*esc); cv.height = Math.round(bmp.height*esc);
   cv.getContext('2d', {willReadFrequently:true}).drawImage(bmp, 0, 0, cv.width, cv.height);
-  const qr = lfBuscarQrEnCanvas(cv);
+  const qr = await lfBuscarQrEnCanvas(cv);
   const texto = await lfOcr(cv, onProgreso);
   return {texto, qr, ocr:true};
 }
