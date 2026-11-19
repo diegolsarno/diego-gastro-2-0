@@ -903,6 +903,7 @@
         <div class="filters">
           <select id="filtroGastosMes"></select> <select id="filtroGastosFamilia"><option value="">Todas las familias</option></select>
           <button class="btn secondary small" onclick="abrirExportarPDF('gastos')">Exportar</button>
+          <button class="btn secondary" id="btnLeerFactura" title="Subí el PDF de una factura y se completa el gasto">📄 Leer factura</button><input type="file" id="inputLeerFactura" accept="application/pdf,.pdf" style="display:none">
           <button class="btn" id="btnAddGasto">+ Agregar</button>
         </div>
       </div>
@@ -1509,7 +1510,7 @@
     </div>
     <div class="row2">
       <div class="field"><label>Tipo de gasto</label><input id="gastoTipoGasto" list="tipoGastoDatalist" placeholder="Ej: COMIDAS"></div>
-      <div class="field"><label>Tipo de comprobante</label><select id="gastoTipoComprobante"><option value="">— sin especificar —</option><option value="A">A</option><option value="B">B</option><option value="Remito">Remito</option><option value="Nota de crédito">Nota de crédito</option></select></div>
+      <div class="field"><label>Tipo de comprobante</label><select id="gastoTipoComprobante"><option value="">— sin especificar —</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="Remito">Remito</option><option value="Nota de crédito">Nota de crédito</option></select></div>
     </div>
     <div class="row2">
       <div class="field"><label>N° comprobante</label><input id="gastoNComprobante" placeholder="Ej: 0001-00001234"></div>
@@ -4494,6 +4495,217 @@ document.getElementById('btnAddGasto').addEventListener('click', ()=>{
   openModal('modalGasto');
 });
 
+
+/* ---------- Lector de facturas (PDF) ----------
+   Lee el PDF en el navegador (sin enviar nada a ningún servidor):
+   1) QR de ARCA/AFIP: fecha, CUIT emisor, tipo, punto de venta, número e importe total.
+   2) Texto del PDF: IVA, otros impuestos y razón social (para encontrar al proveedor).
+   Deja el formulario "Nuevo gasto" prellenado para que Diego revise y guarde. */
+const LF_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const LF_PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const LF_JSQR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+function lfCargarScript(src){
+  return new Promise((ok, err)=>{
+    if(document.querySelector('script[data-lf="'+src+'"]')) return ok();
+    const s = document.createElement('script'); s.src = src; s.dataset.lf = src;
+    s.onload = ()=>ok(); s.onerror = ()=>err(new Error('No se pudo cargar ' + src));
+    document.head.appendChild(s);
+  });
+}
+async function lfPrepararLibs(){
+  if(!window.pdfjsLib){ await lfCargarScript(LF_PDFJS); window.pdfjsLib.GlobalWorkerOptions.workerSrc = LF_PDFJS_WORKER; }
+  if(!window.jsQR) await lfCargarScript(LF_JSQR);
+}
+/* Número en formato argentino ("1.234,56") o internacional ("1234.56") */
+function lfNum(str){
+  if(str===null || str===undefined) return null;
+  let s = String(str).replace(/[^\d.,-]/g,'');
+  if(!s) return null;
+  const c = s.lastIndexOf(','), p = s.lastIndexOf('.');
+  if(c>-1 && p>-1) s = c>p ? s.replace(/\./g,'').replace(',','.') : s.replace(/,/g,'');
+  else if(c>-1) s = /,\d{1,2}$/.test(s) ? s.replace(/\./g,'').replace(',','.') : s.replace(/,/g,'');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+async function lfLeerPdf(file){
+  await lfPrepararLibs();
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({data: buf}).promise;
+  let texto = '', qr = null;
+  for(let n=1; n<=Math.min(pdf.numPages, 3); n++){
+    const page = await pdf.getPage(n);
+    const tc = await page.getTextContent();
+    /* Reagrupar por renglón según la posición vertical */
+    const filas = {};
+    tc.items.forEach(it=>{
+      const y = Math.round(it.transform[5]/3);
+      (filas[y] = filas[y] || []).push(it);
+    });
+    Object.keys(filas).map(Number).sort((a,b)=>b-a).forEach(y=>{
+      texto += filas[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim() + '\n';
+    });
+    if(!qr){
+      for(const scale of [2, 3, 1.4]){
+        const vp = page.getViewport({scale});
+        const cv = document.createElement('canvas'); cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+        const ctx = cv.getContext('2d', {willReadFrequently:true});
+        await page.render({canvasContext: ctx, viewport: vp}).promise;
+        const img = ctx.getImageData(0,0,cv.width,cv.height);
+        const r = window.jsQR(img.data, img.width, img.height, {inversionAttempts:'attemptBoth'});
+        if(r && r.data){ qr = r.data; break; }
+      }
+    }
+  }
+  return {texto, qr};
+}
+/* Datos del QR de ARCA: https://www.afip.gob.ar/fe/qr/?p=<base64 de un JSON> */
+function lfParseQr(data){
+  try{
+    const m = String(data).match(/[?&]p=([^&\s]+)/);
+    if(!m) return null;
+    let b64 = decodeURIComponent(m[1]).replace(/-/g,'+').replace(/_/g,'/');
+    while(b64.length%4) b64 += '=';
+    const j = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    if(!j || !j.nroCmp) return null;
+    return j;
+  }catch(e){ return null; }
+}
+const LF_NC = [3,8,13,53,203];
+function lfTipoComprobante(codigo, texto){
+  if(codigo!==null && codigo!==undefined){
+    if(LF_NC.includes(codigo)) return 'Nota de crédito';
+    if([1,2,201,202].includes(codigo)) return 'A';
+    if([6,7].includes(codigo)) return 'B';
+    if([11,12].includes(codigo)) return 'C';
+    if([51,52].includes(codigo)) return 'A';
+  }
+  if(/nota de cr[eé]dito/i.test(texto)) return 'Nota de crédito';
+  if(/remito/i.test(texto) && !/factura/i.test(texto)) return 'Remito';
+  const m = texto.match(/factura\s+([abc])\b/i) || texto.match(/\bcod\.?\s*0?(1|6|11)\b/i);
+  if(m){ const v = m[1].toUpperCase(); return v==='1' ? 'A' : v==='6' ? 'B' : v==='11' ? 'C' : v; }
+  return '';
+}
+/* IVA, otros impuestos y otros datos desde el texto */
+function lfParseTexto(texto, total){
+  const out = {iva:null, otros:null, fecha:null, nComprobante:null, total:null};
+  const lineas = texto.split('\n');
+  /* IVA por alícuota: "IVA 21% $ 1.234,00", "IVA 10,5%: 123,45" */
+  const porAlicuota = {};
+  lineas.forEach(l=>{
+    const re = /IVA\s*(27|21|10[.,]5|5|2[.,]5)\s*%?\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/gi;
+    let m; while((m = re.exec(l))){ const v = lfNum(m[2]); if(v!==null) porAlicuota[m[1].replace(',','.')] = Math.max(porAlicuota[m[1].replace(',','.')]||0, v); }
+  });
+  const sumaAl = Object.values(porAlicuota).reduce((s,v)=>s+v,0);
+  if(sumaAl>0) out.iva = sumaAl;
+  if(out.iva===null){
+    for(const l of lineas){
+      const m = l.match(/(?:Importe\s+IVA|Total\s+IVA|IVA\s+(?:Inscripto|Total)?)\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})\s*$/i);
+      if(m){ const v = lfNum(m[1]); if(v!==null){ out.iva = v; break; } }
+    }
+  }
+  /* Otros tributos / percepciones */
+  const etiquetasOtros = /(Importe\s+Otros\s+Tributos|Otros\s+Tributos|Percepci[oó]n(?:es)?(?:\s+(?:IIBB|IVA|Ingresos\s+Brutos|de\s+\w+))?|Perc\.?\s*IIBB|Imp\.?\s*Internos?)\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/gi;
+  let otros = 0, hayOtros = false, m;
+  while((m = etiquetasOtros.exec(texto))){ const v = lfNum(m[2]); if(v!==null){ otros += v; hayOtros = true; } }
+  if(hayOtros) out.otros = otros;
+  /* Diferencia por neto si no apareció una línea de otros tributos */
+  if(out.otros===null && total){
+    const get = re=>{ const mm = texto.match(re); return mm ? lfNum(mm[1]) : null; };
+    const neto = get(/Importe\s+Neto\s+Gravado\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/i);
+    const noGrav = get(/Importe\s+No\s+Gravado\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/i) || 0;
+    const exento = get(/Importe\s+Exento\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/i) || 0;
+    if(neto!==null && out.iva!==null){
+      const d = Math.round((total - (neto + noGrav + exento + out.iva))*100)/100;
+      if(d > 0.5) out.otros = d;
+    }
+  }
+  /* Fecha */
+  const f = texto.match(/Fecha\s+de\s+Emisi[oó]n\s*:?\s*(\d{2})[\/-](\d{2})[\/-](\d{4})/i) || texto.match(/Fecha\s*:?\s*(\d{2})[\/-](\d{2})[\/-](\d{4})/i);
+  if(f) out.fecha = f[3]+'-'+f[2]+'-'+f[1];
+  /* Número 0000-00000000 */
+  const n = texto.match(/(?:N[°ºo]?\.?|Comp\.?\s*Nro\.?:?)\s*:?\s*(\d{4,5})\s*-\s*(\d{8})/i) || texto.match(/\b(\d{4,5})-(\d{8})\b/);
+  if(n) out.nComprobante = n[1].padStart(4,'0') + '-' + n[2];
+  /* Total */
+  const t = texto.match(/Importe\s+Total\s*:?\s*\$?\s*([\d.]+,\d{2}|\d+\.\d{2})/i) || texto.match(/\bTOTAL\s*:?\s*\$?\s*([\d.]+,\d{2})\s*$/im);
+  if(t) out.total = lfNum(t[1]);
+  return out;
+}
+function lfNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
+/* Busca entre los proveedores cargados el que aparece en el texto de la factura */
+function lfBuscarProveedor(texto, cuit){
+  const t = ' ' + lfNorm(texto) + ' ';
+  let mejor = null, mejorLen = 0;
+  (data.proveedores||[]).forEach(p=>{
+    const n = lfNorm(p.nombre);
+    if(n.length<3) return;
+    if(t.includes(' ' + n + ' ') && n.length>mejorLen){ mejor = p; mejorLen = n.length; }
+  });
+  if(mejor) return mejor;
+  /* Por palabras: todas las palabras (de 3+ letras) del proveedor aparecen en el texto */
+  (data.proveedores||[]).forEach(p=>{
+    const pal = lfNorm(p.nombre).split(' ').filter(w=>w.length>=3);
+    if(pal.length && pal.every(w=>t.includes(' '+w)) && pal.join('').length>mejorLen){ mejor = p; mejorLen = pal.join('').length; }
+  });
+  return mejor;
+}
+function lfRazonSocial(texto){
+  const m = texto.match(/Raz[oó]n\s+Social\s*:?\s*([^\n]{3,60})/i);
+  return m ? m[1].trim() : '';
+}
+async function lfProcesarArchivo(file){
+  const btn = document.getElementById('btnLeerFactura');
+  const txtOrig = btn.textContent; btn.disabled = true; btn.textContent = 'Leyendo…';
+  try{
+    const {texto, qr} = await lfLeerPdf(file);
+    const q = qr ? lfParseQr(qr) : null;
+    const t = lfParseTexto(texto, q ? Number(q.importe) : null);
+    const total = q ? Number(q.importe) : t.total;
+    const fecha = (q && q.fecha) || t.fecha || '';
+    const nComp = q ? String(q.ptoVta).padStart(4,'0') + '-' + String(q.nroCmp).padStart(8,'0') : (t.nComprobante || '');
+    const tipo = lfTipoComprobante(q ? Number(q.tipoCmp) : null, texto);
+    const prov = lfBuscarProveedor(texto);
+    const esNC = tipo==='Nota de crédito';
+    /* Abrir "Nuevo gasto" y completar */
+    document.getElementById('btnAddGasto').click();
+    document.getElementById('gastoFechaFc').value = fecha;
+    if(!document.getElementById('gastoFechaCarga').value) document.getElementById('gastoFechaCarga').value = new Date().toISOString().slice(0,10);
+    if(prov){ document.getElementById('gastoProveedor').value = prov.id; aplicarDefaultsProveedorEnGasto(); }
+    document.getElementById('gastoTipoComprobante').value = tipo;
+    document.getElementById('gastoNComprobante').value = nComp;
+    if(total!==null && total!==undefined) document.getElementById('gastoTotal').value = esNC ? -Math.abs(total) : total;
+    if(t.iva!==null) document.getElementById('gastoIva').value = esNC ? -Math.abs(t.iva) : t.iva;
+    if(t.otros!==null) document.getElementById('gastoOtrosImpuestos').value = esNC ? -Math.abs(t.otros) : t.otros;
+    calcularFechaPagoDesdeProveedor();
+    /* Aviso de lo que se leyó y de lo que hay que revisar */
+    const avisos = [];
+    avisos.push(q ? 'Leído con el QR de ARCA.' : 'Esta factura no tiene QR legible: datos tomados del texto, revisalos con cuidado.');
+    if(!prov){ const rs = lfRazonSocial(texto); avisos.push('Proveedor no encontrado' + (rs ? ' (razón social detectada: ' + rs + ')' : '') + '. Elegilo o agregalo con "+ Proveedor".'); }
+    if(t.iva===null) avisos.push('No pude leer el IVA.');
+    if(esNC) avisos.push('Es nota de crédito: cargué los importes en negativo.');
+    lfMostrarAviso(avisos.join(' '));
+  }catch(e){
+    alert('No pude leer la factura: ' + e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = txtOrig;
+  }
+}
+function lfMostrarAviso(msg){
+  let el = document.getElementById('lfAviso');
+  if(!el){
+    el = document.createElement('div'); el.id = 'lfAviso';
+    el.style.cssText = 'background:rgba(79,140,255,.12);border:1px solid var(--accent);color:var(--text);border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;';
+    const h = document.querySelector('#modalGasto h3'); h.parentNode.insertBefore(el, h.nextSibling);
+  }
+  el.textContent = '📄 ' + msg; el.style.display = 'block';
+}
+document.getElementById('btnLeerFactura').addEventListener('click', ()=> document.getElementById('inputLeerFactura').click());
+document.getElementById('inputLeerFactura').addEventListener('change', e=>{
+  const f = e.target.files[0]; e.target.value = '';
+  if(f) lfProcesarArchivo(f);
+});
+/* El aviso solo se ve en el gasto que se acaba de leer */
+document.getElementById('btnAddGasto').addEventListener('click', ()=>{ const el = document.getElementById('lfAviso'); if(el) el.style.display = 'none'; });
+
 /* ---------- RRHH: Personal ---------- */
 let filtroRrhhPersonalEstadoVal = 'activos';
 function renderRrhhPersonal(){
@@ -5193,7 +5405,7 @@ function filterHelp(q){
   flush();
   document.getElementById('helpEmpty').classList.toggle('app-hidden', any);
 }
-function openModal(id){ document.getElementById(id).classList.add('open'); }
+function openModal(id){ if(id==='modalGasto'){ const av = document.getElementById('lfAviso'); if(av) av.style.display = 'none'; } document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 
 /* ---------- Insumos ---------- */
