@@ -1479,6 +1479,17 @@
 </div>
 
 <!-- MODAL GASTO -->
+<div class="overlay" id="modalLeerFactura">
+  <div class="modal">
+    <h3>Leer factura</h3>
+    <div class="logo-drop" id="lfDrop" style="padding:34px 18px;">
+      <div style="font-size:42px;line-height:1;margin-bottom:8px;">📄</div>
+      <div class="logo-drop-text" id="lfDropTexto"><b>Arrastrá el PDF de la factura acá</b><br>o hacé clic para elegirlo</div>
+    </div>
+    <div class="hint" style="margin-top:10px;">Funciona con facturas electrónicas en PDF (con QR de ARCA). Se lee en tu navegador y se abre el gasto para que lo revises antes de guardar.</div>
+    <div class="modal-actions"><button class="btn secondary" onclick="closeModal('modalLeerFactura')">Cancelar</button></div>
+  </div>
+</div>
 <div class="overlay" id="modalGasto">
   <div class="modal">
     <h3 id="modalGastoTitle">Nuevo gasto</h3>
@@ -4698,11 +4709,35 @@ function lfMostrarAviso(msg){
   }
   el.textContent = '📄 ' + msg; el.style.display = 'block';
 }
-document.getElementById('btnLeerFactura').addEventListener('click', ()=> document.getElementById('inputLeerFactura').click());
-document.getElementById('inputLeerFactura').addEventListener('change', e=>{
-  const f = e.target.files[0]; e.target.value = '';
-  if(f) lfProcesarArchivo(f);
+document.getElementById('btnLeerFactura').addEventListener('click', ()=>{
+  document.getElementById('lfDrop').classList.remove('dragover');
+  document.getElementById('lfDropTexto').innerHTML = '<b>Arrastrá el PDF de la factura acá</b><br>o hacé clic para elegirlo';
+  openModal('modalLeerFactura');
 });
+(function(){
+  const drop = document.getElementById('lfDrop');
+  const elegir = f=>{
+    if(!f) return;
+    if(!/\.pdf$/i.test(f.name) && f.type!=='application/pdf'){
+      document.getElementById('lfDropTexto').innerHTML = '<b style="color:var(--red);">Eso no es un PDF.</b><br>Probá con el PDF de la factura.';
+      return;
+    }
+    closeModal('modalLeerFactura');
+    lfProcesarArchivo(f);
+  };
+  drop.addEventListener('click', ()=> document.getElementById('inputLeerFactura').click());
+  ['dragenter','dragover'].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('dragover'); }));
+  drop.addEventListener('drop', e=>{ elegir(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+  /* Evita que el navegador abra el PDF si se suelta fuera del recuadro mientras la ventana está abierta */
+  const ov = document.getElementById('modalLeerFactura');
+  ov.addEventListener('dragover', e=> e.preventDefault());
+  ov.addEventListener('drop', e=>{ e.preventDefault(); if(!drop.contains(e.target)) elegir(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+  document.getElementById('inputLeerFactura').addEventListener('change', e=>{
+    const f = e.target.files[0]; e.target.value = '';
+    elegir(f);
+  });
+})();
 /* El aviso solo se ve en el gasto que se acaba de leer */
 document.getElementById('btnAddGasto').addEventListener('click', ()=>{ const el = document.getElementById('lfAviso'); if(el) el.style.display = 'none'; });
 
