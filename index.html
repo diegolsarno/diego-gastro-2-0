@@ -4800,29 +4800,57 @@ function lfLev(a,b){
   for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)); prev=cur; }
   return prev[n];
 }
-const LF_PALABRAS_VACIAS = new Set(['sas','srl','sociedad','por','acciones','simplificadas','distribuidora','comercial','industrial','los','las','del','the']);
-/* Busca entre los proveedores cargados el que aparece en la factura: primero por CUIT (exacto), después por nombre */
+const LF_GENERICAS = new Set(['sas','srl','sociedad','por','acciones','simplificadas','los','las','del','distribuidora','dis','mayorista','mayoristas','supermercado','supermercados','hiper','comercial','industrial','empresa','servicio','servicios','the','and','sra','sres']);
+/* Palabras de un proveedor: lo que está entre paréntesis es una aclaración tuya ("Cadecam (pastelitos)") y no se exige.
+   Se exigen las palabras distintivas (6+ letras); las cortas suman puntaje pero no son obligatorias. */
+function lfTokensProveedor(nombre){
+  const sinParen = String(nombre||'').replace(/\([^)]*\)/g,' ');
+  const paren = (String(nombre||'').match(/\(([^)]*)\)/g)||[]).join(' ');
+  const tok = s=> lfNorm(s).split(' ').filter(w=>w.length>=3 && !LF_GENERICAS.has(w));
+  let main = tok(sinParen);
+  if(!main.length) main = tok(paren);
+  if(!main.length) main = lfNorm(nombre).split(' ').filter(w=>w.length>=2);
+  let req = main.filter(w=>w.length>=6);
+  if(!req.length) req = main;
+  return {main, req};
+}
+function lfTokenCoincide(w, palTexto){
+  const tol = w.length<=4 ? 0 : (w.length<=6 ? 1 : (w.length<=9 ? 2 : 3));
+  return palTexto.some(x=> Math.abs(x.length-w.length)<=tol && lfLev(x,w)<=tol);
+}
+function lfEvaluarProveedores(textoNorm){
+  const palTexto = [...new Set(textoNorm.split(' ').filter(w=>w.length>=2))];
+  const res = [];
+  (data.proveedores||[]).forEach(p=>{
+    const {main, req} = lfTokensProveedor(p.nombre);
+    if(!req.length) return;
+    if(!req.every(w=>lfTokenCoincide(w, palTexto))) return;
+    const score = main.filter(w=>lfTokenCoincide(w, palTexto)).join('').length;
+    res.push({p, score});
+  });
+  return res.sort((a,b)=>b.score-a.score);
+}
+/* Busca el proveedor de la factura: primero por CUIT (exacto), después por nombre.
+   Se mira primero el encabezado (el proveedor es quien emite) y recién después todo el texto. */
 function lfBuscarProveedor(texto, cuit){
+  window.lfCandidatos = [];
   const solo = c=> String(c||'').replace(/\D/g,'');
   if(cuit){ const p = (data.proveedores||[]).find(x=> x.cuit && solo(x.cuit)===solo(cuit)); if(p) return p; }
-  const normTxt = lfNorm(texto);
-  const t = ' ' + normTxt + ' ';
-  let mejor = null, mejorLen = 0;
-  (data.proveedores||[]).forEach(p=>{
-    const n = lfNorm(p.nombre);
-    if(n.length<3) return;
-    if(t.includes(' ' + n + ' ') && n.length>mejorLen){ mejor = p; mejorLen = n.length; }
-  });
-  if(mejor) return mejor;
-  const palTexto = [...new Set(normTxt.split(' ').filter(w=>w.length>=3))];
-  (data.proveedores||[]).forEach(p=>{
-    const pal = lfNorm(p.nombre).split(' ').filter(w=>w.length>=3 && !LF_PALABRAS_VACIAS.has(w));
-    if(!pal.length) return;
-    const ok = pal.every(w=>{ const tol = w.length<=4 ? 0 : (w.length<=7 ? 1 : 2); return palTexto.some(x=> Math.abs(x.length-w.length)<=tol && lfLev(x,w)<=tol); });
-    const len = pal.join('').length;
-    if(ok && len>mejorLen){ mejor = p; mejorLen = len; }
-  });
-  return mejor;
+  const lineas = texto.split('\n').map(l=>l.trim()).filter(Boolean);
+  const encabezado = lfNorm(lineas.slice(0, 14).join(' '));
+  const todo = lfNorm(texto);
+  /* Si el encabezado trae una razón social clara y no coincide con ninguno, no se busca en los renglones
+     (ahí aparecen nombres de productos, como "Té La Virginia", que no son el proveedor). */
+  const bases = lfRazonSocial(texto) ? [encabezado] : [encabezado, todo];
+  for(const base of bases){
+    const r = lfEvaluarProveedores(base);
+    if(!r.length) continue;
+    const top = r.filter(x=> x.score===r[0].score);
+    if(top.length===1) return top[0].p;
+    window.lfCandidatos = top.slice(0,4).map(x=>x.p.nombre);
+    return null;
+  }
+  return null;
 }
 function lfRazonSocial(texto){
   const re = /Raz[oó]n\s+Social\s*:?\s*([^\n]{3,60})/gi; let m;
@@ -4866,7 +4894,11 @@ async function lfProcesarArchivo(file){
     avisos.push(q ? 'Leído con el QR de ARCA.' : 'No encontré un QR legible: datos tomados del texto, revisalos con cuidado.');
     if(ocr) avisos.push('Es una foto o escaneo: el texto se reconoce con menos precisión, controlá IVA, impuestos y proveedor.');
     if(!q && total===null) avisos.push('No pude leer el total.');
-    if(!prov){ const rs = lfRazonSocial(texto); avisos.push('Proveedor no encontrado' + (rs ? ' (razón social detectada: ' + rs + ')' : '') + '. Elegilo o agregalo con "+ Proveedor".'); }
+    if(!prov){
+      const rs = lfRazonSocial(texto);
+      if(window.lfCandidatos && window.lfCandidatos.length) avisos.push('No pude decidir el proveedor, puede ser: ' + window.lfCandidatos.join(' · ') + '. Elegilo en la lista.');
+      else avisos.push('Proveedor no encontrado' + (rs ? ' (razón social detectada: ' + rs + ')' : '') + '. Elegilo o agregalo con "+ Proveedor".');
+    }
     if(t.iva===null) avisos.push('No pude leer el IVA.');
     else if(t.porResolutor) avisos.push('IVA y percepciones calculados con los importes de la factura.');
     if(t.totalEstimado) avisos.push('No encontré el total con seguridad: puse el mayor importe leído, controlalo.');
