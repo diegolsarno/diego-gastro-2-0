@@ -3256,12 +3256,13 @@ function renderGastos(){
   tbody.innerHTML = sorted.map(g=>`<tr data-gasto-id="${g.id}" class="${g.total<0?'row-neg':''}">
     <td>${fmtDate(g.fechaFc||g.fechaCarga)}</td><td>${escapeHtml(g.proveedorNombre)}</td>
     <td class="muted">${escapeHtml(g.familiaNombre)}</td><td class="muted">${escapeHtml(g.tipoGasto||'-')}</td>
-    <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}${g.facturaPath ? ` <a href="#" onclick="verFacturaGasto('${g.id}'); return false;" title="Ver factura guardada" style="text-decoration:none; font-size:13px; opacity:.85;">📎</a>` : ''}</td>
+    <td class="muted">${escapeHtml(g.tipoComprobante||'-')}</td><td class="muted">${escapeHtml(g.nComprobante||'-')}</td>
     <td class="muted">${fmt(g.iva)}</td><td class="muted">${fmt(g.otrosImpuestos)}</td>
     <td><b>${fmt(g.total)}</b></td>
     <td><button class="btn-pago ${g.formaPago ? 'pago-ok':'pago-pend'}" onclick="togglePagoChip(event,'${g.id}')" title="${g.formaPago?('Pagado: '+g.formaPago):'Sin forma de pago'}">$</button>${g.formaPago==='E-check' && g.echeckNumero ? `<small class="muted" style="margin-left:4px; font-size:10.5px;" title="N° de e-check">#${escapeHtml(g.echeckNumero)}</small>` : ''}</td>
     <td>${g.formaPago ? `<span class="pill ok">${escapeHtml(g.formaPago)}</span>` : `<span class="pill error">Pendiente</span>`}</td>
     <td class="actions">
+      ${g.facturaPath ? `<button class="btn secondary small" onclick="verFacturaGasto('${g.id}')" title="Ver factura guardada" style="font-size:18px; line-height:1; padding:3px 9px; vertical-align:middle;">📎</button>` : ''}
       <button class="btn secondary small" onclick="editGasto('${g.id}')">Editar</button>
       <button class="btn danger small" onclick="deleteGasto('${g.id}')">Eliminar</button>
     </td></tr>`).join('');
