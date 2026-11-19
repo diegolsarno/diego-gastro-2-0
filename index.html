@@ -242,6 +242,9 @@
   .caja-popover .cp-lbl{font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:3px;}
   .ingr-row{border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px; background:var(--panel2);}
   .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
+  /* Nuevo gasto: ventana más alta y botones siempre visibles (aunque aparezca el aviso de factura leída) */
+  #modalGasto .modal{max-height:95vh;}
+  #modalGasto .modal-actions{position:sticky; bottom:-22px; background:var(--panel); padding:12px 0 4px; margin-top:12px; border-top:1px solid var(--border); z-index:2;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
   .badge-count{background:var(--panel2); color:var(--muted); border-radius:20px; padding:1px 8px; font-size:11px; margin-left:6px;}
   footer{text-align:center; color:var(--muted); font-size:11.5px; padding:20px; opacity:.6;}
