@@ -1493,6 +1493,13 @@
     <div class="modal-actions"><button class="btn secondary" onclick="closeModal('modalLeerFactura')">Cancelar</button></div>
   </div>
 </div>
+<div class="overlay" id="modalVerFactura">
+  <div class="modal" style="max-width:760px; width:94vw;">
+    <h3 id="vfTitulo">Factura</h3>
+    <div id="vfCuerpo" style="height:68vh; overflow:auto; background:var(--bg2,rgba(128,128,128,.08)); border:1px solid var(--border); border-radius:8px; display:flex; align-items:flex-start; justify-content:center;"></div>
+    <div class="modal-actions"><a id="vfAbrir" class="btn secondary" target="_blank" rel="noopener" style="text-decoration:none;">Abrir en otra pestaña</a><button class="btn" onclick="cerrarVerFactura()">Cerrar</button></div>
+  </div>
+</div>
 <div class="overlay" id="modalGasto">
   <div class="modal">
     <h3 id="modalGastoTitle">Nuevo gasto</h3>
@@ -4538,12 +4545,29 @@ async function subirArchivoFactura(file){
     return {path, kb: Math.round(pack.blob.size/1024)};
   }catch(e){ return {error: e.message}; }
 }
+let _vfUrl = null;
+function cerrarVerFactura(){
+  closeModal('modalVerFactura');
+  document.getElementById('vfCuerpo').innerHTML = '';
+  if(_vfUrl){ URL.revokeObjectURL(_vfUrl); _vfUrl = null; }
+}
 async function verFacturaGasto(id){
   const g = data.gastos.find(x=>x.id===id);
   if(!g || !g.facturaPath){ alert('Este gasto no tiene factura guardada.'); return; }
-  const {data:d, error} = await supa.storage.from('facturas').createSignedUrl(g.facturaPath, 300);
-  if(error || !d){ alert('No pude abrir la factura: ' + (error ? error.message : 'sin acceso')); return; }
-  window.open(d.signedUrl, '_blank');
+  const cuerpo = document.getElementById('vfCuerpo');
+  document.getElementById('vfTitulo').textContent = 'Factura · ' + (g.proveedorNombre||'') + (g.nComprobante ? ' · ' + g.nComprobante : '');
+  cuerpo.innerHTML = '<div class="muted" style="padding:30px;">Cargando factura…</div>';
+  document.getElementById('vfAbrir').style.display = 'none';
+  openModal('modalVerFactura');
+  const {data:blob, error} = await supa.storage.from('facturas').download(g.facturaPath);
+  if(error || !blob){ cuerpo.innerHTML = '<div class="muted" style="padding:30px;">No pude abrir la factura: ' + escapeHtml(error ? error.message : 'sin acceso') + '</div>'; return; }
+  if(_vfUrl) URL.revokeObjectURL(_vfUrl);
+  _vfUrl = URL.createObjectURL(blob);
+  const esPdf = /\.pdf$/i.test(g.facturaPath);
+  cuerpo.innerHTML = esPdf
+    ? `<iframe src="${_vfUrl}" style="width:100%; height:100%; border:0;"></iframe>`
+    : `<img src="${_vfUrl}" style="max-width:100%; height:auto; display:block;" alt="Factura">`;
+  const ab = document.getElementById('vfAbrir'); ab.href = _vfUrl; ab.style.display = '';
 }
 
 /* ---------- Lector de facturas (PDF) ----------
