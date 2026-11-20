@@ -3107,7 +3107,7 @@ function renderTotales(){
 
 /* ---------- Comparativas por día de la semana (se calculan solas con las cajas diarias) ---------- */
 const CMP_COLS = [
-  {k:'kiosco', l:'Kiosco'}, {k:'parrilla', l:'Parrilla'}, {k:'rest', l:'Restaurante'}, {k:'plaza', l:'Plaza'},
+  {k:'kiosco', l:'Kiosco'}, {k:'parrilla', l:'Parrilla'}, {k:'rest', l:'Restaurante'},
   {k:'sub', l:'Subtotal'}, {k:'viandas', l:'Viandas'}, {k:'t3', l:'3ros Tiempos'}, {k:'total', l:'Total'},
 ];
 const CMP_DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
@@ -3121,11 +3121,10 @@ function cmpIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function cmpCorto(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
 function cmpDia(v){
   const kiosco = v.kioscoEfectivo+v.kioscoBco+v.kioscoMp;
-  const parrilla = v.parrillaEfectivo+v.parrillaMp;
+  const parrilla = v.parrillaEfectivo+v.parrillaMp+(v.chiringoEfectivo||0)+(v.chiringoMp||0);   /* Plaza va sumada a Parrilla */
   const rest = v.total;
-  const plaza = (v.chiringoEfectivo||0)+(v.chiringoMp||0);
-  const sub = kiosco+parrilla+rest+plaza;
-  return {kiosco, parrilla, rest, plaza, sub, viandas:v.viandasTotal, t3:v.terceirosTotal, total: sub+v.viandasTotal+v.terceirosTotal};
+  const sub = kiosco+parrilla+rest;
+  return {kiosco, parrilla, rest, sub, viandas:v.viandasTotal, t3:v.terceirosTotal, total: sub+v.viandasTotal+v.terceirosTotal};
 }
 function cmpSumar(a,b){ const o={}; CMP_COLS.forEach(c=>{ o[c.k] = (a?a[c.k]:0) + b[c.k]; }); return o; }
 function cmpFilas(vista){
@@ -3153,16 +3152,16 @@ function cmpFilas(vista){
   return [...g.values()].sort((a,b)=> b.key.localeCompare(a.key));
 }
 function cmpPorDiaSemana(mesKey){
-  const acc = Array.from({length:7}, ()=>({n:0, kiosco:0, parrilla:0, rest:0, plaza:0}));
+  const acc = Array.from({length:7}, ()=>({n:0, kiosco:0, parrilla:0, rest:0}));
   data.ventasDiarias.forEach(v=>{
     if(!v.fecha || monthKey(v.fecha)!==mesKey) return;
     const wd = (cmpFechaObj(v.fecha).getDay()+6)%7;          // 0 = lunes
     const c = cmpDia(v); const a = acc[wd];
-    a.n++; a.kiosco+=c.kiosco; a.parrilla+=c.parrilla; a.rest+=c.rest; a.plaza+=c.plaza;
+    a.n++; a.kiosco+=c.kiosco; a.parrilla+=c.parrilla; a.rest+=c.rest;
   });
   return acc.map(a=>{
-    const kiosco = a.n? a.kiosco/a.n : 0, parrilla = a.n? a.parrilla/a.n : 0, rest = a.n? a.rest/a.n : 0, plaza = a.n? a.plaza/a.n : 0;
-    return {n:a.n, kiosco, parrilla, rest, plaza, prom: kiosco+parrilla+rest+plaza};
+    const kiosco = a.n? a.kiosco/a.n : 0, parrilla = a.n? a.parrilla/a.n : 0, rest = a.n? a.rest/a.n : 0;
+    return {n:a.n, kiosco, parrilla, rest, prom: kiosco+parrilla+rest};
   });
 }
 function renderComparativas(){
@@ -3184,21 +3183,21 @@ function renderComparativas(){
     const prevKey = (mm===1 ? (yy-1)+'-12' : yy+'-'+String(mm-1).padStart(2,'0'));
     const act = cmpPorDiaSemana(cmpMesVal), ant = cmpPorDiaSemana(prevKey);
     const orden = act.map((a,i)=>({i,p:a.prom})).filter(x=>x.p>0).sort((a,b)=>b.p-a.p).map(x=>x.i);
-    hint.textContent = 'Promedio de lo vendido cada día de la semana en el mes (Kiosco + Parrilla + Restaurante + Plaza), solo con los días cargados. La variación compara contra el mismo día del mes anterior.';
-    head.innerHTML = `<tr><th>Día</th>${thR('Kiosco')}${thR('Parrilla')}${thR('Restaurante')}${thR('Plaza')}${thR('Promedio por día')}${thR('Ranking')}${thR('Variación %')}${thR('Días cargados')}</tr>`;
+    hint.textContent = 'Promedio de lo vendido cada día de la semana en el mes (Kiosco + Parrilla con Plaza + Restaurante), solo con los días cargados. La variación compara contra el mismo día del mes anterior.';
+    head.innerHTML = `<tr><th>Día</th>${thR('Kiosco')}${thR('Parrilla')}${thR('Restaurante')}${thR('Promedio por día')}${thR('Ranking')}${thR('Variación %')}${thR('Días cargados')}</tr>`;
     body.innerHTML = act.map((a,i)=>{
       const rk = orden.indexOf(i); const vr = ant[i].prom>0 && a.prom>0 ? a.prom/ant[i].prom-1 : null;
-      return `<tr><td>${CMP_DIAS[i]}</td>${tdR(fmtP(a.kiosco))}${tdR(fmtP(a.parrilla))}${tdR(fmtP(a.rest))}${tdR(fmtP(a.plaza))}${tdR('<b>'+fmtP(a.prom)+'</b>')}${tdR(rk>=0?rk+1:'-')}<td style="text-align:right;${colorPct(vr)}">${vr===null?'-':fmtPct(vr)}</td>${tdR(a.n)}</tr>`;
+      return `<tr><td>${CMP_DIAS[i]}</td>${tdR(fmtP(a.kiosco))}${tdR(fmtP(a.parrilla))}${tdR(fmtP(a.rest))}${tdR('<b>'+fmtP(a.prom)+'</b>')}${tdR(rk>=0?rk+1:'-')}<td style="text-align:right;${colorPct(vr)}">${vr===null?'-':fmtPct(vr)}</td>${tdR(a.n)}</tr>`;
     }).join('');
     const semana = act.reduce((t,a)=>t+a.prom,0), semanaAnt = ant.reduce((t,a)=>t+a.prom,0);
     const vs = semanaAnt>0 && semana>0 ? semana/semanaAnt-1 : null;
-    foot.innerHTML = `<tr style="font-weight:700;"><td colspan="5">Promedio por semana</td>${tdR(fmtP(semana))}<td></td><td style="text-align:right;${colorPct(vs)}">${vs===null?'-':fmtPct(vs)}</td><td></td></tr>`;
+    foot.innerHTML = `<tr style="font-weight:700;"><td colspan="4">Promedio por semana</td>${tdR(fmtP(semana))}<td></td><td style="text-align:right;${colorPct(vs)}">${vs===null?'-':fmtPct(vs)}</td><td></td></tr>`;
     return;
   }
   selM.style.display='none';
   const filas = cmpFilas(cmpVistaVal);
   const etiqueta = {sab:'Fecha', dom:'Fecha', finde:'Fin de semana', semana:'Semana'}[cmpVistaVal];
-  hint.textContent = 'Cada fila suma lo vendido en esos días. Subtotal = Kiosco + Parrilla + Restaurante + Plaza; Total = Subtotal + Viandas + 3ros Tiempos. "Última vs promedio" muestra cuánto se desvió la fila más reciente.';
+  hint.textContent = 'Cada fila suma lo vendido en esos días. Parrilla incluye Plaza. Subtotal = Kiosco + Parrilla + Restaurante; Total = Subtotal + Viandas + 3ros Tiempos. "Última vs promedio" muestra cuánto se desvió la fila más reciente.';
   head.innerHTML = `<tr><th>${etiqueta}</th>${CMP_COLS.map(c=>thR(c.l)).join('')}</tr>`;
   if(filas.length===0){ body.innerHTML = `<tr><td colspan="${CMP_COLS.length+1}" class="muted">Todavía no hay datos para esta comparativa.</td></tr>`; foot.innerHTML=''; return; }
   body.innerHTML = filas.map(f=>`<tr><td>${f.label}</td>${CMP_COLS.map(c=>tdR(c.k==='total'?'<b>'+fmtP(f.vals[c.k])+'</b>':fmtP(f.vals[c.k]))).join('')}</tr>`).join('');
