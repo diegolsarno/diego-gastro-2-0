@@ -1660,7 +1660,7 @@ if(supa){
 let data = {
   insumos:[], recetas:[], menu:[],
   proveedores:[], familias:[], precioHistorico:[], preciosViandas3T:[],
-  gastos:[], ventasDiarias:[], cajaMovimientos:[],
+  gastos:[], ventasDiarias:[], comparativasHist:[], cajaMovimientos:[],
   egresosSaldosIniciales:{},
   empleados:[], rrhhParametrosMes:[], rrhhEventuales:[], rrhhLiquidaciones:[], rrhhLiquidacionesFinales:[],
 };
@@ -2009,7 +2009,7 @@ async function loadAll(){
 
     /* --- Nuevas tablas (Administracion / Parametros). Se cargan de forma tolerante
        a errores para no romper el resto de la app si alguna tabla todavia no existe. --- */
-    const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD, egresosSaldosD, preciosV3TD] = await Promise.all([
+    const [proveedoresD, familiasD, precioHistD, gastosD, ventasD, cajaD, egresosSaldosD, preciosV3TD, comparativasHistD] = await Promise.all([
       safeQuery(supa.from('proveedores').select('*').order('nombre'), 'proveedores'),
       safeQuery(supa.from('familias').select('*').order('nombre'), 'familias'),
       safeQuery(supa.from('precio_historico').select('*, insumos(nombre), proveedores(nombre)').eq('proyecto_id', pid).order('mes'), 'precio_historico'),
@@ -2018,6 +2018,7 @@ async function loadAll(){
       safeQuery(supa.from('caja_movimientos').select('*').eq('proyecto_id', pid).order('cuenta').order('fecha'), 'caja_movimientos'),
       safeQuery(supa.from('egresos_saldos_iniciales').select('*').eq('proyecto_id', pid), 'egresos_saldos_iniciales'),
       safeQuery(supa.from('precios_viandas_3t').select('*').eq('proyecto_id', pid).order('mes'), 'precios_viandas_3t'),
+      safeQuery(supa.from('comparativas_historico').select('*').eq('proyecto_id', pid).order('fecha'), 'comparativas_historico'),
     ]);
 
     /* Proveedores ficticios del proyecto Demo (ids dede0000-...): solo se ven dentro del Demo y no se mezclan con los locales reales. */
@@ -2054,6 +2055,12 @@ async function loadAll(){
       total:Number(v.total)||0,
       impuestosMp:Number(v.impuestos_mp)||0, impuestosBco:Number(v.impuestos_bco)||0,
     }));
+    /* Historial cargado aparte (sábados y domingos viejos): solo alimenta las Comparativas, no toca EERR ni totales */
+    data.comparativasHist = comparativasHistD.map(h=>{
+      const kiosco = Number(h.kiosco)||0, parrilla = Number(h.parrilla)||0, rest = Number(h.restaurante)||0, viandas = Number(h.viandas)||0, t3 = Number(h.terceros)||0;
+      const sub = kiosco+parrilla+rest;
+      return {fecha:h.fecha, vals:{kiosco, parrilla, rest, sub, viandas, t3, total: sub+viandas+t3}};
+    });
     data.cajaMovimientos = cajaD.map(c=>({
       id:c.id, cuenta:c.cuenta, fecha:c.fecha,
       ventas:Number(c.ventas)||0, otroIngreso:Number(c.otro_ingreso)||0,
@@ -3127,10 +3134,18 @@ function cmpDia(v){
   return {kiosco, parrilla, rest, sub, viandas:v.viandasTotal, t3:v.terceirosTotal, total: sub+v.viandasTotal+v.terceirosTotal};
 }
 function cmpSumar(a,b){ const o={}; CMP_COLS.forEach(c=>{ o[c.k] = (a?a[c.k]:0) + b[c.k]; }); return o; }
+/* Días para comparar: las cajas reales y, en Sábados / Domingos / Fin de semana, también el historial viejo (si la fecha ya tiene caja, manda la caja) */
+function cmpDiasFuente(vista){
+  const lista = data.ventasDiarias.filter(v=>v.fecha).map(v=>({fecha:v.fecha, vals:cmpDia(v)}));
+  if(vista==='sab' || vista==='dom' || vista==='finde'){
+    const con = new Set(lista.map(x=>x.fecha));
+    (data.comparativasHist||[]).forEach(h=>{ if(h.fecha && !con.has(h.fecha)) lista.push({fecha:h.fecha, vals:h.vals}); });
+  }
+  return lista;
+}
 function cmpFilas(vista){
   const g = new Map();
-  data.ventasDiarias.forEach(v=>{
-    if(!v.fecha) return;
+  cmpDiasFuente(vista).forEach(v=>{
     const d = cmpFechaObj(v.fecha); const wd = d.getDay();   // 0 = domingo
     let key=null, label=null;
     if(vista==='sab' && wd===6){ key=v.fecha; label=fmtDate(v.fecha); }
@@ -3147,7 +3162,7 @@ function cmpFilas(vista){
     }
     if(!key) return;
     const x = g.get(key) || {key, label, vals:null};
-    x.vals = cmpSumar(x.vals, cmpDia(v)); g.set(key, x);
+    x.vals = cmpSumar(x.vals, v.vals); g.set(key, x);
   });
   return [...g.values()].sort((a,b)=> b.key.localeCompare(a.key));
 }
@@ -3170,12 +3185,13 @@ function renderComparativas(){
   const selV = document.getElementById('cmpVista'), selM = document.getElementById('cmpMes');
   if(!head) return;
   selV.value = cmpVistaVal;
-  if(data.ventasDiarias.length===0){ head.innerHTML=''; body.innerHTML=''; foot.innerHTML=''; empty.style.display='block'; hint.textContent=''; selM.style.display='none'; return; }
+  if(data.ventasDiarias.length===0 && (data.comparativasHist||[]).length===0){ head.innerHTML=''; body.innerHTML=''; foot.innerHTML=''; empty.style.display='block'; hint.textContent=''; selM.style.display='none'; return; }
   empty.style.display='none';
   const thR = t=>`<th style="text-align:right;">${t}</th>`;
   const tdR = t=>`<td style="text-align:right;">${t}</td>`;
   const colorPct = x=> (x===null||!isFinite(x)) ? '' : (x>0 ? 'color:var(--green);' : (x<0 ? 'color:var(--red);' : ''));
   if(cmpVistaVal==='mes'){
+    if(data.ventasDiarias.length===0){ selM.style.display='none'; hint.textContent=''; head.innerHTML=''; body.innerHTML='<tr><td class="muted">Esta vista se arma con las cajas diarias cargadas en la app.</td></tr>'; foot.innerHTML=''; return; }
     const meses = [...new Set(data.ventasDiarias.map(v=>monthKey(v.fecha)).filter(Boolean))].sort().reverse();
     if(!meses.includes(cmpMesVal)) cmpMesVal = meses[0];
     selM.innerHTML = meses.map(m=>`<option value="${m}">${fmtMes(m+'-01')}</option>`).join(''); selM.value = cmpMesVal; selM.style.display='';
